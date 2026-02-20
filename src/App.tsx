@@ -9,6 +9,7 @@ import Tournaments from "./pages/Tournaments";
 import Games from "./pages/Games";
 import Rankings from "./pages/Rankings";
 import TeamsPage from "./pages/TeamsPage";
+import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -19,16 +20,21 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Layout>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/tournaments" element={<Tournaments />} />
-            <Route path="/games" element={<Games />} />
-            <Route path="/rankings" element={<Rankings />} />
-            <Route path="/teams" element={<TeamsPage />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </Layout>
+        <Routes>
+          <Route path="/admin" element={<Admin />} />
+          <Route path="*" element={
+            <Layout>
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/tournaments" element={<Tournaments />} />
+                <Route path="/games" element={<Games />} />
+                <Route path="/rankings" element={<Rankings />} />
+                <Route path="/teams" element={<TeamsPage />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Layout>
+          } />
+        </Routes>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
