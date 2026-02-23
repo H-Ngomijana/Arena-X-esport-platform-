@@ -1,0 +1,88 @@
+{
+  "name": "Tournament",
+  "type": "object",
+  "properties": {
+    "entry_fee_amount": { "type": "number", "default": 0 },
+    "entry_fee_currency": { "type": "string", "default": "RWF" },
+    "payment_recipient_name": { "type": "string", "default": "Uwase Kevine" },
+    "payment_recipient_number": { "type": "string", "default": "0794417555" },
+    "payment_description": { "type": "string", "default": "ArenaX Tournament Entry Fee" },
+    "match_start_time": { "type": "string", "format": "date-time" },
+    "announcements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "title": { "type": "string" },
+          "message": { "type": "string" },
+          "created_at": { "type": "string" },
+          "type": { "type": "string", "enum": ["info", "warning", "match", "winner"] }
+        }
+      }
+    },
+    "prizes": {
+      "type": "object",
+      "properties": {
+        "first": { "type": "string" },
+        "second": { "type": "string" },
+        "third": { "type": "string" }
+      }
+    },
+    "tournament_rules": { "type": "string" },
+    "featured": { "type": "boolean", "default": false },
+    "current_match_id": { "type": "string" },
+    "rounds_data": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "round_number": { "type": "number" },
+          "round_label": { "type": "string" },
+          "status": { "type": "string", "enum": ["pending", "active", "completed"] },
+          "matches": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "top_players_override": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "rank": { "type": "number" },
+          "name": { "type": "string" },
+          "email": { "type": "string" },
+          "mmr": { "type": "number" },
+          "badge": { "type": "string" }
+        }
+      }
+    },
+    "top_teams_override": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "rank": { "type": "number" },
+          "name": { "type": "string" },
+          "wins": { "type": "number" },
+          "losses": { "type": "number" }
+        }
+      }
+    },
+    "results_log": {
+      "type": "array",
+      "description": "Public results history",
+      "items": {
+        "type": "object",
+        "properties": {
+          "round": { "type": "number" },
+          "match_label": { "type": "string" },
+          "winner_name": { "type": "string" },
+          "loser_name": { "type": "string" },
+          "score": { "type": "string" },
+          "screenshot_urls": { "type": "array", "items": { "type": "string" } },
+          "declared_at": { "type": "string" }
+        }
+      }
+    }
+  }
+}

@@ -1,32 +1,120 @@
-import { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
-import { Trophy, Menu, X, Bell } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Menu, X, Bell } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+import BrandLogo from "@/components/BrandLogo";
+import { toast } from "sonner";
+import { getCurrentUser, getJoinRequests, getUnreadNotificationCount } from "@/lib/storage";
 
 const navLinks = [
   { label: "Home", to: "/" },
   { label: "Tournaments", to: "/tournaments" },
+  { label: "Announcements", to: "/announcements" },
   { label: "Rankings", to: "/rankings" },
   { label: "Games", to: "/games" },
   { label: "Teams", to: "/teams" },
 ];
 
+const footerColumns: Array<{
+  title: string;
+  links: Array<{ label: string; to?: string; href?: string }>;
+}> = [
+  {
+    title: "Platform",
+    links: [
+      { label: "Tournaments", to: "/tournaments" },
+      { label: "Rankings", to: "/rankings" },
+      { label: "Games", to: "/games" },
+    ],
+  },
+  {
+    title: "Community",
+    links: [
+      { label: "Discord" },
+      { label: "Twitter" },
+      { label: "YouTube" },
+      { label: "Instagram: Ngomijana_", href: "https://instagram.com/Ngomijana_" },
+    ],
+  },
+  {
+    title: "Support",
+    links: [
+      { label: "Help Center" },
+      { label: "Contact: 0794417555" },
+    ],
+  },
+];
+
 const Layout = ({ children }: { children: React.ReactNode }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [redirectCountdown, setRedirectCountdown] = useState(0);
+  const [redirectTarget, setRedirectTarget] = useState("");
   const location = useLocation();
+  const navigate = useNavigate();
+  const currentUser = getCurrentUser();
+
+  useEffect(() => {
+    const refresh = () => setUnreadCount(getUnreadNotificationCount(currentUser.email));
+    refresh();
+    const timer = setInterval(refresh, 2000);
+    return () => clearInterval(timer);
+  }, [currentUser.email]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (location.pathname.toLowerCase().includes("tournamentlive")) return;
+
+      const approved = getJoinRequests()
+        .filter(
+          (item) =>
+            item.user_email === currentUser.email &&
+            item.approval_status === "approved"
+        )
+        .sort(
+          (a, b) =>
+            new Date(b.approved_at || b.created_at).getTime() -
+            new Date(a.approved_at || a.created_at).getTime()
+        )[0];
+
+      if (!approved) return;
+
+      const redirectedRef = sessionStorage.getItem("arenax_auto_join_redirect_ref");
+      if (redirectedRef === approved.payment_reference) return;
+
+      sessionStorage.setItem("arenax_auto_join_redirect_ref", approved.payment_reference);
+      setRedirectTarget(`/TournamentLive?id=${approved.tournament_id}`);
+      setRedirectCountdown(3);
+    }, 2000);
+
+    return () => clearInterval(timer);
+  }, [currentUser.email, location.pathname, navigate]);
+
+  useEffect(() => {
+    if (redirectCountdown <= 0 || !redirectTarget) return;
+    if (redirectCountdown === 3) {
+      toast.success("Your join request was approved. Entering tournament panel in 3 seconds.");
+    }
+    const timer = setTimeout(() => {
+      if (redirectCountdown === 1) {
+        navigate(redirectTarget);
+      } else {
+        setRedirectCountdown((n) => n - 1);
+      }
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [redirectCountdown, redirectTarget, navigate]);
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Navbar */}
       <header className="fixed top-0 left-0 right-0 z-50 nav-blur">
         <div className="container flex items-center justify-between h-16">
           <Link to="/" className="flex items-center gap-2">
-            <Trophy className="text-primary" size={24} />
+            <BrandLogo size={24} />
             <span className="font-display text-xl font-bold tracking-wider gradient-text">ARENAX</span>
           </Link>
 
-          {/* Desktop nav */}
           <nav className="hidden md:flex items-center gap-1">
             {navLinks.map((l) => (
               <Link
@@ -45,10 +133,17 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
           </nav>
 
           <div className="flex items-center gap-3">
-            <button className="relative p-2 rounded-lg hover:bg-white/5 transition-colors text-muted-foreground hover:text-foreground">
+            <Link
+              to="/notifications"
+              className="relative p-2 rounded-lg hover:bg-white/5 transition-colors text-muted-foreground hover:text-foreground"
+            >
               <Bell size={18} />
-              <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-primary" />
-            </button>
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-4 h-4 rounded-full bg-rose-500 text-white text-[10px] px-1 flex items-center justify-center">
+                  {unreadCount}
+                </span>
+              )}
+            </Link>
             <button
               className="md:hidden p-2 rounded-lg hover:bg-white/5 text-muted-foreground"
               onClick={() => setMobileOpen(true)}
@@ -59,7 +154,6 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         </div>
       </header>
 
-      {/* Mobile menu */}
       <AnimatePresence>
         {mobileOpen && (
           <>
@@ -84,7 +178,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                 <X size={20} />
               </button>
               <div className="flex items-center gap-2 mb-8">
-                <Trophy className="text-primary" size={20} />
+                <BrandLogo size={20} />
                 <span className="font-display text-lg font-bold gradient-text">ARENAX</span>
               </div>
               <nav className="flex flex-col gap-1">
@@ -109,39 +203,64 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         )}
       </AnimatePresence>
 
-      {/* Content */}
       <main className="flex-1 pt-16">{children}</main>
+      {redirectCountdown > 0 && (
+        <div className="fixed inset-0 z-[70] bg-black/70 flex items-center justify-center p-4">
+          <div className="w-full max-w-sm rounded-2xl border border-emerald-500/30 bg-[#0a0a12] p-6 text-center">
+            <p className="text-emerald-300 font-mono text-xs uppercase tracking-widest">Approval Confirmed</p>
+            <h3 className="text-2xl font-black mt-2">Entering Tournament Panel</h3>
+            <p className="text-white/70 mt-1">Redirecting in {redirectCountdown}s</p>
+            <div className="mt-4 h-2 rounded bg-white/10 overflow-hidden">
+              <div
+                className="h-full bg-emerald-500 transition-all duration-1000"
+                style={{ width: `${((4 - redirectCountdown) / 3) * 100}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
-      {/* Footer */}
       <footer className="border-t border-white/[0.06] bg-card/50 mt-20">
         <div className="container py-12">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <Trophy className="text-primary" size={18} />
+                <BrandLogo size={18} />
                 <span className="font-display font-bold gradient-text">ARENAX</span>
               </div>
               <p className="text-xs text-muted-foreground">The premier competitive esports tournament platform.</p>
             </div>
-            {[
-              { title: "Platform", links: ["Tournaments", "Rankings", "Games"] },
-              { title: "Community", links: ["Discord", "Twitter", "YouTube"] },
-              { title: "Support", links: ["Help Center", "Contact", "Terms"] },
-            ].map((col) => (
+            {footerColumns.map((col) => (
               <div key={col.title}>
                 <h4 className="font-display font-semibold text-sm mb-3">{col.title}</h4>
                 <ul className="space-y-2">
                   {col.links.map((link) => (
-                    <li key={link}>
-                      <span className="text-xs text-muted-foreground hover:text-foreground cursor-pointer transition-colors">{link}</span>
+                    <li key={link.label}>
+                      {link.to ? (
+                        <Link to={link.to} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+                          {link.label}
+                        </Link>
+                      ) : link.href ? (
+                        <a
+                          href={link.href}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          {link.label}
+                        </a>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">{link.label}</span>
+                      )}
                     </li>
                   ))}
                 </ul>
               </div>
             ))}
           </div>
+
           <div className="border-t border-white/[0.06] mt-8 pt-6 text-center text-xs text-muted-foreground font-mono">
-            © 2026 ArenaX. All rights reserved.
+            © 2026 Arena X . ngomijana. All Rights Reserved.
           </div>
         </div>
       </footer>

@@ -1,0 +1,21 @@
+{
+  "name": "DisputeReport",
+  "type": "object",
+  "properties": {
+    "tournament_id": { "type": "string" },
+    "match_id": { "type": "string" },
+    "reported_by_email": { "type": "string" },
+    "reported_by_name": { "type": "string" },
+    "reason": { "type": "string" },
+    "description": { "type": "string" },
+    "evidence_urls": { "type": "array", "items": { "type": "string" } },
+    "status": {
+      "type": "string",
+      "enum": ["open", "reviewing", "resolved", "dismissed"],
+      "default": "open"
+    },
+    "admin_response": { "type": "string" }
+  },
+  "required": ["tournament_id", "reported_by_email", "reason"]
+}
+

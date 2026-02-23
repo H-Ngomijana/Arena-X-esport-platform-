@@ -1,0 +1,41 @@
+{
+  "name": "JoinRequest",
+  "type": "object",
+  "properties": {
+    "tournament_id": { "type": "string" },
+    "tournament_name": { "type": "string" },
+    "user_email": { "type": "string" },
+    "user_name": { "type": "string" },
+    "profile_type": { "type": "string", "enum": ["team", "solo"] },
+    "team_id": { "type": "string" },
+    "team_name": { "type": "string" },
+    "payment_status": {
+      "type": "string",
+      "enum": ["pending", "paid", "failed", "refunded", "free", "manual_pending"],
+      "default": "pending"
+    },
+    "payment_method": {
+      "type": "string",
+      "enum": ["mtn_momo", "manual", "free"],
+      "default": "mtn_momo"
+    },
+    "manual_note": {
+      "type": "string",
+      "description": "User's note when submitting manual payment"
+    },
+    "payment_reference": { "type": "string" },
+    "sender_name": { "type": "string" },
+    "sender_number": { "type": "string" },
+    "amount_paid": { "type": "number" },
+    "approval_status": {
+      "type": "string",
+      "enum": ["awaiting_payment", "awaiting_approval", "approved", "rejected"],
+      "default": "awaiting_payment"
+    },
+    "approved_by": { "type": "string" },
+    "approved_at": { "type": "string", "format": "date-time" },
+    "rejection_reason": { "type": "string" },
+    "admin_notes": { "type": "string" }
+  },
+  "required": ["tournament_id", "user_email", "profile_type"]
+}

@@ -58,10 +58,12 @@
     --sidebar-border: 0 0% 100% / 0.08;
     --sidebar-ring: 239 84% 67%;
 
-    /* Game theme overrides */
-    --theme-primary: 239 84% 67%;
-    --theme-secondary: 270 70% 50%;
-    --theme-accent: 187 96% 52%;
+    /* Game theme dynamic colors - set by ThemeContext */
+    --color-primary: #6366f1;
+    --color-secondary: #8b5cf6;
+    --color-accent: #06b6d4;
+    --gradient-from: #6366f1;
+    --gradient-to: #8b5cf6;
   }
 }
 
@@ -79,6 +81,16 @@
     font-family: 'Rajdhani', sans-serif;
     @apply font-bold tracking-tight;
   }
+
+  select option {
+    background-color: #0a0a12;
+    color: #ffffff;
+  }
+
+  select option:checked {
+    background-color: #1f2937;
+    color: #ffffff;
+  }
 }
 
 @layer components {
@@ -92,7 +104,11 @@
 
   .gradient-text {
     @apply bg-clip-text text-transparent;
-    background-image: var(--gradient-primary);
+    background-image: linear-gradient(to right, var(--color-primary), var(--color-secondary));
+  }
+
+  .gradient-bg {
+    background: linear-gradient(135deg, var(--gradient-from), var(--gradient-to));
   }
 
   .glass-card {
@@ -104,11 +120,11 @@
   }
   .glass-card-hover:hover {
     @apply bg-white/[0.06] border-white/[0.15];
-    box-shadow: var(--glow-primary);
+    box-shadow: 0 0 40px var(--color-primary);
   }
 
   .glow-primary {
-    box-shadow: var(--glow-primary);
+    box-shadow: 0 0 40px var(--color-primary);
   }
 
   .glow-success {
@@ -149,5 +165,15 @@
 
   .animate-float {
     animation: float 3s ease-in-out infinite;
+  }
+
+  @keyframes field-shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-4px); }
+    75% { transform: translateX(4px); }
+  }
+
+  .animate-field-shake {
+    animation: field-shake 0.28s ease-in-out 2;
   }
 }

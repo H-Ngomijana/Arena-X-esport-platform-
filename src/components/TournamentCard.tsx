@@ -33,7 +33,7 @@ const TournamentCard = ({
   const progress = (registered_count / max_teams) * 100;
 
   return (
-    <Link to={`/tournaments/${id}`}>
+    <Link to={`/tournament?id=${id}`}>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}

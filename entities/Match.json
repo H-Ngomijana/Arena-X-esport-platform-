@@ -1,0 +1,50 @@
+{
+  "name": "Match",
+  "type": "object",
+  "properties": {
+    "participants": {
+      "type": "array",
+      "description": "Approved users/teams in this match",
+      "items": {
+        "type": "object",
+        "properties": {
+          "profile_id": { "type": "string" },
+          "profile_type": { "type": "string", "enum": ["team", "solo"] },
+          "name": { "type": "string" },
+          "email": { "type": "string" },
+          "ready_status": { "type": "boolean", "default": false },
+          "ready_at": { "type": "string" }
+        }
+      }
+    },
+    "evidence_submissions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "submitted_by_email": { "type": "string" },
+          "submitted_by_name": { "type": "string" },
+          "screenshot_urls": { "type": "array", "items": { "type": "string" } },
+          "score_claimed": { "type": "number" },
+          "notes": { "type": "string" },
+          "submitted_at": { "type": "string" },
+          "is_public": { "type": "boolean", "default": true }
+        }
+      }
+    },
+    "admin_result": {
+      "type": "object",
+      "properties": {
+        "winner_name": { "type": "string" },
+        "winner_id": { "type": "string" },
+        "score_a": { "type": "number" },
+        "score_b": { "type": "number" },
+        "declared_at": { "type": "string" },
+        "declared_by": { "type": "string" }
+      }
+    },
+    "is_current_match": { "type": "boolean", "default": false },
+    "round_label": { "type": "string" }
+  }
+}
+

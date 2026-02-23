@@ -1,0 +1,30 @@
+{
+  "name": "SoloProfile",
+  "type": "object",
+  "properties": {
+    "user_email": { "type": "string" },
+    "user_name": { "type": "string" },
+    "game_id": { "type": "string" },
+    "game_name": { "type": "string" },
+    "avatar_url": { "type": "string" },
+    "bio": { "type": "string" },
+    "in_game_name": { "type": "string" },
+    "country": { "type": "string" },
+    "rating": { "type": "number", "default": 1000 },
+    "rank_tier": {
+      "type": "string",
+      "enum": ["Bronze", "Silver", "Gold", "Platinum", "Diamond", "Champion"],
+      "default": "Bronze"
+    },
+    "stats": {
+      "type": "object",
+      "properties": {
+        "matches_played": { "type": "number", "default": 0 },
+        "wins": { "type": "number", "default": 0 },
+        "losses": { "type": "number", "default": 0 }
+      }
+    }
+  },
+  "required": ["user_email", "game_id", "in_game_name"]
+}
+

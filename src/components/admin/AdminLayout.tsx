@@ -2,11 +2,26 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  LayoutDashboard, Gamepad2, Trophy, Swords, Users, AlertTriangle,
-  Image, Activity, Settings, Terminal, ChevronLeft, ChevronRight,
-  Menu, X, User, LogOut
+  LayoutDashboard,
+  Gamepad2,
+  Trophy,
+  Swords,
+  Users,
+  AlertTriangle,
+  Image,
+  Activity,
+  Settings,
+  ChevronLeft,
+  ChevronRight,
+  Menu,
+  X,
+  User,
+  LogOut,
+  CheckSquare,
+  UserCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import BrandLogo from "@/components/BrandLogo";
 
 const navItems = [
   { id: "dashboard", label: "Command Center", icon: LayoutDashboard },
@@ -15,6 +30,8 @@ const navItems = [
   { id: "matches", label: "Match Control", icon: Swords },
   { id: "teams", label: "Teams & Players", icon: Users },
   { id: "disputes", label: "Dispute Panel", icon: AlertTriangle },
+  { id: "join_requests", label: "Join Requests", icon: UserCheck },
+  { id: "submissions", label: "Solo Submissions", icon: CheckSquare },
   { id: "media", label: "Media & Branding", icon: Image },
   { id: "audit", label: "Audit Logs", icon: Activity },
   { id: "settings", label: "System Settings", icon: Settings },
@@ -25,21 +42,22 @@ interface AdminLayoutProps {
   onPanelChange: (panel: string) => void;
   children: React.ReactNode;
   userEmail: string;
+  onLogout?: () => void;
+  awaitingJoinRequests?: number;
 }
 
-const AdminLayout = ({ activePanel, onPanelChange, children, userEmail }: AdminLayoutProps) => {
+const AdminLayout = ({ activePanel, onPanelChange, children, userEmail, onLogout, awaitingJoinRequests = 0 }: AdminLayoutProps) => {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const currentLabel = navItems.find(n => n.id === activePanel)?.label || "Command Center";
+  const currentLabel = navItems.find((n) => n.id === activePanel)?.label || "Command Center";
 
   const SidebarContent = ({ mobile = false }: { mobile?: boolean }) => (
     <div className="flex flex-col h-full">
-      {/* Logo */}
       <div className="p-4 border-b border-rose-500/20">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-rose-500 to-rose-700 flex items-center justify-center flex-shrink-0">
-            <Terminal size={16} className="text-white" />
+          <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
+            <BrandLogo size={24} />
           </div>
           {(!collapsed || mobile) && (
             <div>
@@ -50,14 +68,16 @@ const AdminLayout = ({ activePanel, onPanelChange, children, userEmail }: AdminL
         </div>
       </div>
 
-      {/* Nav */}
       <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
         {navItems.map((item) => {
           const active = activePanel === item.id;
           return (
             <button
               key={item.id}
-              onClick={() => { onPanelChange(item.id); if (mobile) setMobileOpen(false); }}
+              onClick={() => {
+                onPanelChange(item.id);
+                if (mobile) setMobileOpen(false);
+              }}
               className={cn(
                 "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg font-mono text-xs transition-all",
                 active
@@ -67,6 +87,11 @@ const AdminLayout = ({ activePanel, onPanelChange, children, userEmail }: AdminL
             >
               <item.icon size={16} className="flex-shrink-0" />
               {(!collapsed || mobile) && <span className="truncate">{item.label}</span>}
+              {item.id === "join_requests" && awaitingJoinRequests > 0 && (!collapsed || mobile) && (
+                <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 text-white text-[10px] animate-pulse px-1">
+                  {awaitingJoinRequests}
+                </span>
+              )}
               {active && (!collapsed || mobile) && (
                 <span className="ml-auto w-2 h-2 rounded-full bg-rose-400 animate-pulse" />
               )}
@@ -75,7 +100,6 @@ const AdminLayout = ({ activePanel, onPanelChange, children, userEmail }: AdminL
         })}
       </nav>
 
-      {/* Footer */}
       {(!collapsed || mobile) && (
         <div className="p-4 border-t border-rose-500/20 space-y-3">
           <div className="font-mono text-[10px] text-white/30 space-y-1">
@@ -89,8 +113,16 @@ const AdminLayout = ({ activePanel, onPanelChange, children, userEmail }: AdminL
             to="/"
             className="block text-center font-mono text-[10px] text-white/40 hover:text-white/60 transition-colors py-1"
           >
-            ← BACK TO PLATFORM
+            {"<- BACK TO PLATFORM"}
           </Link>
+          {onLogout && (
+            <button
+              onClick={onLogout}
+              className="w-full flex items-center justify-center gap-2 font-mono text-[10px] text-rose-300 hover:text-rose-200 transition-colors py-1"
+            >
+              <LogOut size={12} /> LOG OUT
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -98,7 +130,6 @@ const AdminLayout = ({ activePanel, onPanelChange, children, userEmail }: AdminL
 
   return (
     <div className="flex h-screen bg-[#07070c] font-mono overflow-hidden">
-      {/* Desktop Sidebar */}
       <aside
         className={cn(
           "hidden md:flex flex-col bg-[#0a0a0f] border-r border-rose-500/20 relative transition-all duration-300",
@@ -114,7 +145,6 @@ const AdminLayout = ({ activePanel, onPanelChange, children, userEmail }: AdminL
         </button>
       </aside>
 
-      {/* Mobile Sidebar */}
       <AnimatePresence>
         {mobileOpen && (
           <>
@@ -144,9 +174,7 @@ const AdminLayout = ({ activePanel, onPanelChange, children, userEmail }: AdminL
         )}
       </AnimatePresence>
 
-      {/* Main */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Top Bar */}
         <header className="h-12 flex items-center justify-between px-4 border-b border-white/10 bg-[#0a0a0f] flex-shrink-0">
           <div className="flex items-center gap-3">
             <button className="md:hidden text-white/50 hover:text-white" onClick={() => setMobileOpen(true)}>
@@ -167,7 +195,6 @@ const AdminLayout = ({ activePanel, onPanelChange, children, userEmail }: AdminL
           </div>
         </header>
 
-        {/* Content */}
         <main className="flex-1 overflow-y-auto p-4 md:p-6">{children}</main>
       </div>
     </div>
