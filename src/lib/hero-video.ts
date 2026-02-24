@@ -110,15 +110,30 @@ export async function getHomeHeroVideoBlob(): Promise<Blob | null> {
   if (!baseUrl) return await getValue<Blob>(HERO_VIDEO_KEY);
 
   try {
-    const meta = await getHomeHeroVideoMeta();
-    if (!meta || meta.source === "local") {
+    // Fetch remote video directly so transient meta endpoint errors
+    // do not incorrectly hide an existing remote hero video.
+    const response = await fetch(`${baseUrl}/media/home-hero`, { method: "GET" });
+    if (response.ok) return await response.blob();
+    if (response.status === 404) {
+      // Explicitly no remote video set.
       return await getValue<Blob>(HERO_VIDEO_KEY);
     }
-    const response = await fetch(`${baseUrl}/media/home-hero`, { method: "GET" });
-    if (!response.ok) return null;
-    return await response.blob();
+    return await getValue<Blob>(HERO_VIDEO_KEY);
   } catch {
     return await getValue<Blob>(HERO_VIDEO_KEY);
+  }
+}
+
+export async function hasRemoteHomeHeroVideo(): Promise<boolean> {
+  const baseUrl = getSyncBaseUrl();
+  if (!baseUrl) return false;
+  try {
+    const response = await fetch(`${baseUrl}/media/home-hero-meta`, { method: "GET" });
+    if (!response.ok) return false;
+    const payload = await response.json();
+    return Boolean(payload?.exists);
+  } catch {
+    return false;
   }
 }
 

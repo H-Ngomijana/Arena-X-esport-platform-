@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Trophy, Swords, Users, Zap, ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import GlowButton from "@/components/GlowButton";
@@ -10,7 +10,7 @@ import { useGames } from "@/context/GamesContext";
 import heroBanner from "@/assets/hero-banner.jpg";
 import HowItWorks from "@/components/HowItWorks";
 import { getAnnouncements, getMediaFeed, getTournaments } from "@/lib/storage";
-import { getHomeHeroVideoBlob } from "@/lib/hero-video";
+import { getHomeHeroVideoBlob, getHomeHeroVideoMeta } from "@/lib/hero-video";
 
 const Index = () => {
   const { games } = useGames();
@@ -22,6 +22,7 @@ const Index = () => {
   const mediaFeed = getMediaFeed().slice(0, 6);
   const latestAnnouncements = getAnnouncements().slice(0, 5);
   const [heroVideoUrl, setHeroVideoUrl] = useState<string>("");
+  const hasHeroVideoRef = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -35,12 +36,25 @@ const Index = () => {
         if (blob) {
           const nextUrl = URL.createObjectURL(blob);
           previousUrl = nextUrl;
+          hasHeroVideoRef.current = true;
           setHeroVideoUrl(nextUrl);
         } else {
-          setHeroVideoUrl("");
+          const meta = await getHomeHeroVideoMeta();
+          if (!meta) {
+            hasHeroVideoRef.current = false;
+            setHeroVideoUrl("");
+            return;
+          }
+          if (!hasHeroVideoRef.current) {
+            // Keep image fallback on first load if no blob is available yet.
+            // Do not clear an already-playing video on temporary fetch errors.
+            setHeroVideoUrl("");
+          }
         }
       } catch {
-        setHeroVideoUrl("");
+        if (!hasHeroVideoRef.current) {
+          setHeroVideoUrl("");
+        }
       }
     };
 
@@ -51,7 +65,7 @@ const Index = () => {
     const onDataChanged = () => {
       loadHeroVideo();
     };
-    const poll = window.setInterval(loadHeroVideo, 5000);
+    const poll = window.setInterval(loadHeroVideo, 15000);
     window.addEventListener("arenax:hero-video-updated", onHeroUpdate as EventListener);
     window.addEventListener("arenax:data-changed", onDataChanged as EventListener);
     return () => {
