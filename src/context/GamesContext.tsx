@@ -29,51 +29,80 @@ interface GamesContextType {
 
 const GamesContext = createContext<GamesContextType | undefined>(undefined);
 
-export const GamesProvider = ({ children }: { children: ReactNode }) => {
-  const [games, setGames] = useState<Game[]>([]);
+const GAMES_KEY = "arenax_games";
+const syncApiConfigured = Boolean((import.meta.env.VITE_SYNC_API_BASE_URL || "").trim());
 
-  // Initialize games from localStorage if available, otherwise use mock data
+function readStoredGames(): Game[] | null {
+  try {
+    const raw = localStorage.getItem(GAMES_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as Game[]) : null;
+  } catch {
+    return null;
+  }
+}
+
+export const GamesProvider = ({ children }: { children: ReactNode }) => {
+  const [games, setGames] = useState<Game[]>(() => {
+    const stored = readStoredGames();
+    if (stored) return stored;
+    // In synced environments, avoid seeding static defaults before remote hydration.
+    if (syncApiConfigured) return [];
+    return initialGames as Game[];
+  });
+
+  // Re-hydrate from localStorage on mount and whenever sync writes in the same tab.
   useEffect(() => {
-    const savedGames = localStorage.getItem("arenax_games");
-    if (savedGames) {
-      try {
-        setGames(JSON.parse(savedGames));
-      } catch {
+    const syncGames = () => {
+      const stored = readStoredGames();
+      if (stored) {
+        setGames(stored);
+        return;
+      }
+      if (!syncApiConfigured) {
         setGames(initialGames as Game[]);
       }
-    } else {
-      setGames(initialGames as Game[]);
-    }
+    };
+
+    syncGames();
+
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === GAMES_KEY || event.key === null) syncGames();
+    };
+
+    const onDataChanged = (event: Event) => {
+      const detail = (event as CustomEvent<{ key?: string }>).detail;
+      if (!detail?.key || detail.key === "remote_sync" || detail.key === GAMES_KEY) {
+        syncGames();
+      }
+    };
+
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("arenax:data-changed", onDataChanged as EventListener);
+
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("arenax:data-changed", onDataChanged as EventListener);
+    };
   }, []);
 
   // Save games to localStorage whenever they change
   useEffect(() => {
-    // Persist even when empty so deletions remain after reload.
-    localStorage.setItem("arenax_games", JSON.stringify(games));
+    // In synced environments, avoid writing empty defaults before first hydration.
+    if (syncApiConfigured && games.length === 0 && localStorage.getItem(GAMES_KEY) === null) {
+      return;
+    }
+    // Persist even when empty so intentional deletions remain after reload.
+    localStorage.setItem(GAMES_KEY, JSON.stringify(games));
     markKeyDirty("arenax_games");
+
+    window.dispatchEvent(
+      new CustomEvent("arenax:data-changed", {
+        detail: { key: GAMES_KEY, at: new Date().toISOString() },
+      })
+    );
   }, [games]);
-
-  useEffect(() => {
-    const syncGames = () => {
-      const savedGames = localStorage.getItem("arenax_games");
-      if (!savedGames) return;
-      try {
-        setGames(JSON.parse(savedGames));
-      } catch {
-        // keep current state on parse failure
-      }
-    };
-
-    const onStorage = (event: StorageEvent) => {
-      if (event.key === "arenax_games") syncGames();
-    };
-
-    window.addEventListener("storage", onStorage);
-
-    return () => {
-      window.removeEventListener("storage", onStorage);
-    };
-  }, []);
 
   const updateGame = (id: string, updates: Partial<Game>) => {
     setGames((prevGames) =>
