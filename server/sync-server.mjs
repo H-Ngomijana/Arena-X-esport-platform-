@@ -8,19 +8,52 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const PORT = Number(process.env.PORT || 8787);
-const DB_FILE = process.env.SYNC_DB_FILE || path.join(__dirname, "sync-state.json");
-const MEDIA_DIR = process.env.SYNC_MEDIA_DIR || path.join(__dirname, "media");
-const HERO_VIDEO_FILE = path.join(MEDIA_DIR, "home-hero-video.bin");
-const HERO_VIDEO_META_FILE = path.join(MEDIA_DIR, "home-hero-video-meta.json");
+const DB_FILE_CONFIG = process.env.SYNC_DB_FILE || path.join(__dirname, "sync-state.json");
+const MEDIA_DIR_CONFIG = process.env.SYNC_MEDIA_DIR || path.join(__dirname, "media");
 const DIST_DIR = path.resolve(__dirname, "../dist");
+
+let DB_FILE = DB_FILE_CONFIG;
+let MEDIA_DIR = MEDIA_DIR_CONFIG;
+let HERO_VIDEO_FILE = path.join(MEDIA_DIR, "home-hero-video.bin");
+let HERO_VIDEO_META_FILE = path.join(MEDIA_DIR, "home-hero-video-meta.json");
 
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: "25mb" }));
-app.use("/media/files", express.static(MEDIA_DIR));
-if (fs.existsSync(DIST_DIR)) {
-  app.use(express.static(DIST_DIR));
+function resolveWritablePaths() {
+  const fallbackDb = path.join(__dirname, ".runtime", "sync-state.json");
+  const fallbackMedia = path.join(__dirname, ".runtime", "media");
+
+  try {
+    const dbDir = path.dirname(DB_FILE_CONFIG);
+    if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true });
+    fs.writeFileSync(path.join(dbDir, ".write-test"), "ok", "utf8");
+    fs.unlinkSync(path.join(dbDir, ".write-test"));
+    DB_FILE = DB_FILE_CONFIG;
+  } catch {
+    const dbDir = path.dirname(fallbackDb);
+    if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true });
+    DB_FILE = fallbackDb;
+  }
+
+  try {
+    if (!fs.existsSync(MEDIA_DIR_CONFIG)) fs.mkdirSync(MEDIA_DIR_CONFIG, { recursive: true });
+    fs.writeFileSync(path.join(MEDIA_DIR_CONFIG, ".write-test"), "ok", "utf8");
+    fs.unlinkSync(path.join(MEDIA_DIR_CONFIG, ".write-test"));
+    MEDIA_DIR = MEDIA_DIR_CONFIG;
+  } catch {
+    if (!fs.existsSync(fallbackMedia)) fs.mkdirSync(fallbackMedia, { recursive: true });
+    MEDIA_DIR = fallbackMedia;
+  }
+
+  HERO_VIDEO_FILE = path.join(MEDIA_DIR, "home-hero-video.bin");
+  HERO_VIDEO_META_FILE = path.join(MEDIA_DIR, "home-hero-video-meta.json");
 }
+
+resolveWritablePaths();
+
+app.use("/media/files", express.static(MEDIA_DIR));
+if (fs.existsSync(DIST_DIR)) app.use(express.static(DIST_DIR));
 
 function ensureDb() {
   const dir = path.dirname(DB_FILE);
@@ -61,7 +94,13 @@ function writeDb(data) {
 }
 
 app.get("/health", (_req, res) => {
-  res.json({ ok: true, service: "arenax-sync-server", at: new Date().toISOString() });
+  res.json({
+    ok: true,
+    service: "arenax-sync-server",
+    at: new Date().toISOString(),
+    db_file: DB_FILE,
+    media_dir: MEDIA_DIR,
+  });
 });
 
 app.get("/sync/snapshot", (_req, res) => {
