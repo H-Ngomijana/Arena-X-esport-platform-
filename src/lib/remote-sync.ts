@@ -50,6 +50,7 @@ function writeMeta(meta: SyncMeta) {
 }
 
 export function markKeyDirty(key: string) {
+  if (syncEnabled && !syncHydrated) return;
   const meta = readMeta();
   meta[key] = Date.now();
   writeMeta(meta);
@@ -58,8 +59,11 @@ export function markKeyDirty(key: string) {
 let syncStarted = false;
 let pushInFlight = false;
 let pullInFlight = false;
+let syncEnabled = false;
+let syncHydrated = false;
 
 async function pushAll(baseUrl: string) {
+  if (syncEnabled && !syncHydrated) return;
   if (pushInFlight) return;
   pushInFlight = true;
   try {
@@ -128,9 +132,18 @@ export function startRemoteSync() {
 
   const baseUrl = getBaseUrl();
   if (!baseUrl) return;
+  syncEnabled = true;
+  syncHydrated = false;
 
-  pullAll(baseUrl);
-  pushAll(baseUrl);
+  Promise.resolve()
+    .then(async () => {
+      await pullAll(baseUrl);
+      syncHydrated = true;
+      await pushAll(baseUrl);
+    })
+    .catch(() => {
+      syncHydrated = true;
+    });
 
   const pushTimer = window.setInterval(() => pushAll(baseUrl), 2000);
   const pullTimer = window.setInterval(() => pullAll(baseUrl), 2000);
@@ -145,6 +158,8 @@ export function startRemoteSync() {
     window.clearInterval(pushTimer);
     window.clearInterval(pullTimer);
     window.removeEventListener("online", onOnline);
+    syncEnabled = false;
+    syncHydrated = false;
     syncStarted = false;
   };
 }
