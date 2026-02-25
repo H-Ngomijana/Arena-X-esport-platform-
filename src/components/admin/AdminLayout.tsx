@@ -73,13 +73,14 @@ const AdminLayout = ({ activePanel, onPanelChange, children, userEmail, onLogout
           const active = activePanel === item.id;
           return (
             <button
+              type="button"
               key={item.id}
               onClick={() => {
                 onPanelChange(item.id);
                 if (mobile) setMobileOpen(false);
               }}
               className={cn(
-                "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg font-mono text-xs transition-all",
+                "relative z-20 pointer-events-auto w-full flex items-center gap-3 px-3 py-2.5 rounded-lg font-mono text-xs transition-all",
                 active
                   ? "bg-rose-500/20 text-rose-300 border border-rose-500/30"
                   : "text-white/50 hover:text-white hover:bg-white/5 border border-transparent"
@@ -132,12 +133,13 @@ const AdminLayout = ({ activePanel, onPanelChange, children, userEmail, onLogout
     <div className="flex h-screen bg-[#07070c] font-mono overflow-hidden">
       <aside
         className={cn(
-          "hidden md:flex flex-col bg-[#0a0a0f] border-r border-rose-500/20 relative transition-all duration-300",
+          "hidden md:flex flex-col bg-[#0a0a0f] border-r border-rose-500/20 relative z-50 transition-all duration-300",
           collapsed ? "w-16" : "w-64"
         )}
       >
         <SidebarContent />
         <button
+          type="button"
           onClick={() => setCollapsed(!collapsed)}
           className="absolute -right-3 top-20 w-6 h-6 rounded-full bg-rose-600 border border-rose-500/50 flex items-center justify-center text-white hover:bg-rose-500 transition-colors z-10"
         >
@@ -174,7 +176,7 @@ const AdminLayout = ({ activePanel, onPanelChange, children, userEmail, onLogout
         )}
       </AnimatePresence>
 
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="relative z-0 flex-1 flex flex-col overflow-hidden">
         <header className="h-12 flex items-center justify-between px-4 border-b border-white/10 bg-[#0a0a0f] flex-shrink-0">
           <div className="flex items-center gap-3">
             <button className="md:hidden text-white/50 hover:text-white" onClick={() => setMobileOpen(true)}>
