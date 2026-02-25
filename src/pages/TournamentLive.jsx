@@ -12,8 +12,13 @@ import StandingsTab from "@/components/tournament/StandingsTab";
 import EvidenceLightbox from "@/components/tournament/EvidenceLightbox";
 import { useGames } from "@/context/GamesContext";
 import { getCurrentUser, getMatches, getMyTournamentJoinRequest, getSoloProfiles, getTeams, getTournaments, updateMatch } from "@/lib/storage";
+import { useRealtimeRefresh } from "@/components/hooks/useRealtimeRefresh";
 
 const TournamentLive = () => {
+  useRealtimeRefresh({
+    keys: ["tournaments", "matches", "dispute_reports", "join_requests"],
+    intervalMs: 4000,
+  });
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const tournamentId = searchParams.get("id") || "";

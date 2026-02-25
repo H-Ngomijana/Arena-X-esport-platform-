@@ -4,6 +4,7 @@ import { Search } from "lucide-react";
 import TournamentCard from "@/components/TournamentCard";
 import { cn } from "@/lib/utils";
 import { getPageBackgrounds, getTournaments } from "@/lib/storage";
+import { useRealtimeRefresh } from "@/components/hooks/useRealtimeRefresh";
 
 const filters = ["All", "Registration Open", "Live", "Completed", "Coming Soon"];
 const statusMap: Record<string, string> = {
@@ -14,6 +15,10 @@ const statusMap: Record<string, string> = {
 };
 
 const Tournaments = () => {
+  useRealtimeRefresh({
+    keys: ["tournaments", "page_backgrounds"],
+    intervalMs: 10000,
+  });
   const [active, setActive] = useState("All");
   const [search, setSearch] = useState("");
   const tournaments = getTournaments();

@@ -11,8 +11,13 @@ import heroBanner from "@/assets/hero-banner.jpg";
 import HowItWorks from "@/components/HowItWorks";
 import { getAnnouncements, getMediaFeed, getTournaments } from "@/lib/storage";
 import { getHomeHeroVideoBlob, getHomeHeroVideoMeta } from "@/lib/hero-video";
+import { useRealtimeRefresh } from "@/components/hooks/useRealtimeRefresh";
 
 const Index = () => {
+  useRealtimeRefresh({
+    keys: ["tournaments", "announcements", "media_feed", "arenax_games"],
+    intervalMs: 10000,
+  });
   const { games } = useGames();
   const tournaments = getTournaments();
   const featuredTournaments = tournaments

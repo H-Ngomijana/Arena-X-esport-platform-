@@ -7,10 +7,12 @@ import AdminDeclareResult from "@/components/admin/AdminDeclareResult";
 import AdminStandingsEditor from "@/components/admin/AdminStandingsEditor";
 import AdminAnnouncementPanel from "@/components/admin/AdminAnnouncementPanel";
 import AdminTournamentPortalSettings from "@/components/admin/AdminTournamentPortalSettings";
+import { useRealtimeRefresh } from "@/components/hooks/useRealtimeRefresh";
 
 const statusOptions = ["scheduled", "check_in", "live", "awaiting_results", "disputed", "completed", "forfeit"];
 
 const AdminMatchControl = ({ logAction }: { logAction: (a: string) => void }) => {
+  useRealtimeRefresh({ keys: ["matches", "tournaments", "join_requests"], intervalMs: 4000 });
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedTournament, setSelectedTournament] = useState("");

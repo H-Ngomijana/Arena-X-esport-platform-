@@ -4,10 +4,12 @@ import { adminDisputes, adminMatches, disputeStatusColors } from "@/lib/admin-mo
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { useRealtimeRefresh } from "@/components/hooks/useRealtimeRefresh";
 
 const tabs = ["open", "under_review", "resolved", "dismissed", "all"] as const;
 
 const AdminDisputePanel = ({ logAction }: { logAction: (a: string) => void }) => {
+  useRealtimeRefresh({ keys: ["dispute_reports"], intervalMs: 6000 });
   const [disputes, setDisputes] = useState(adminDisputes);
   const [activeTab, setActiveTab] = useState<string>("all");
   const [resolveDispute, setResolveDispute] = useState<typeof adminDisputes[0] | null>(null);

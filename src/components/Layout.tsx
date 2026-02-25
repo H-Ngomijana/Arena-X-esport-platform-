@@ -5,7 +5,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import BrandLogo from "@/components/BrandLogo";
 import { toast } from "sonner";
-import { getCurrentUser, getJoinRequests, getUnreadNotificationCount } from "@/lib/storage";
+import { getCurrentUser, getJoinRequests, getMyJoinRequests, getUnreadNotificationCount } from "@/lib/storage";
+import { useRealtimeRefresh } from "@/components/hooks/useRealtimeRefresh";
 
 const navLinks = [
   { label: "Home", to: "/" },
@@ -47,6 +48,10 @@ const footerColumns: Array<{
 ];
 
 const Layout = ({ children }: { children: React.ReactNode }) => {
+  useRealtimeRefresh({
+    keys: ["user_notifications", "join_requests"],
+    intervalMs: 5000,
+  });
   const [mobileOpen, setMobileOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [redirectCountdown, setRedirectCountdown] = useState(0);
@@ -66,12 +71,8 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     const timer = setInterval(() => {
       if (location.pathname.toLowerCase().includes("tournamentlive")) return;
 
-      const approved = getJoinRequests()
-        .filter(
-          (item) =>
-            item.user_email === currentUser.email &&
-            item.approval_status === "approved"
-        )
+      const approved = getMyJoinRequests(currentUser.email)
+        .filter((item) => item.approval_status === "approved")
         .sort(
           (a, b) =>
             new Date(b.approved_at || b.created_at).getTime() -

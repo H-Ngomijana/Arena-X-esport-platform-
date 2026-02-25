@@ -11,8 +11,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useTheme } from "@/context/ThemeContext";
 import { toast } from "sonner";
 import { useGames } from "@/context/GamesContext";
+import { useRealtimeRefresh } from "@/components/hooks/useRealtimeRefresh";
 
 const Tournament = () => {
+  useRealtimeRefresh({
+    keys: ["tournaments", "matches", "join_requests", "teams", "solo_profiles"],
+    intervalMs: 5000,
+  });
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);

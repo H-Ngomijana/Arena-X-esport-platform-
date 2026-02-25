@@ -31,7 +31,18 @@ import TournamentLive from "./pages/TournamentLive";
 import { getSystemSettings } from "@/lib/storage";
 import { startRemoteSync } from "@/lib/remote-sync";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 30,
+      gcTime: 1000 * 60 * 10,
+      refetchOnWindowFocus: true,
+      refetchOnMount: true,
+      refetchOnReconnect: true,
+      retry: 2,
+    },
+  },
+});
 
 const MaintenanceNotice = ({ message }: { message?: string }) => (
   <div className="min-h-screen bg-[#050508] text-white flex items-center justify-center px-4">

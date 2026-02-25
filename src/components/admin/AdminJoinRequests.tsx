@@ -4,6 +4,7 @@ import { addUserNotification, getJoinRequests, getTournaments, updateJoinRequest
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import AdminManualPaymentAlert from "@/components/admin/AdminManualPaymentAlert";
+import { useRealtimeRefresh } from "@/components/hooks/useRealtimeRefresh";
 
 const filters = [
   { label: "Awaiting Approval", value: "awaiting_approval" },
@@ -26,6 +27,7 @@ const relativeTime = (iso: string) => {
 };
 
 const AdminJoinRequests = ({ logAction, onAwaitingCountChange }: AdminJoinRequestsProps) => {
+  useRealtimeRefresh({ keys: ["join_requests", "tournaments", "user_notifications"], intervalMs: 5000 });
   const [active, setActive] = useState("awaiting_approval");
   const [requests, setRequests] = useState(getJoinRequests());
   const [rejecting, setRejecting] = useState<any | null>(null);
