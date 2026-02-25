@@ -35,6 +35,8 @@ const KEYS = {
   systemSettings: "arenax_system_settings",
 } as const;
 
+const syncApiConfigured = Boolean((import.meta.env.VITE_SYNC_API_BASE_URL || "").trim());
+
 export interface PageBackgrounds {
   games_page?: string;
   game_page_default?: string;
@@ -188,8 +190,19 @@ function safeWrite<T>(key: string, value: T) {
   );
 }
 
+function readSharedCollection<T>(key: string, fallback: T[]): T[] {
+  try {
+    const stored = localStorage.getItem(key);
+    if (!stored) return syncApiConfigured ? [] : fallback;
+    const parsed = JSON.parse(stored);
+    return Array.isArray(parsed) ? (parsed as T[]) : syncApiConfigured ? [] : fallback;
+  } catch {
+    return syncApiConfigured ? [] : fallback;
+  }
+}
+
 export function getTournaments() {
-  const all = safeRead<any[]>(KEYS.tournaments, mockTournaments);
+  const all = readSharedCollection<any>(KEYS.tournaments, mockTournaments);
   return all.map((item) => {
     const startAt = item.match_start_time || (item.start_date ? `${item.start_date}T18:00:00.000Z` : new Date().toISOString());
     return {
@@ -226,7 +239,7 @@ export function saveTournaments(tournaments: any[]) {
 }
 
 export function getTeams() {
-  return safeRead<any[]>(KEYS.teams, mockTeams);
+  return readSharedCollection<any>(KEYS.teams, mockTeams);
 }
 
 export function saveTeams(teams: any[]) {
@@ -234,7 +247,7 @@ export function saveTeams(teams: any[]) {
 }
 
 export function getMatches() {
-  const list = safeRead<any[]>(KEYS.matches, mockMatches);
+  const list = readSharedCollection<any>(KEYS.matches, mockMatches);
   return list.map((item) => ({
     ...item,
     participants: Array.isArray(item.participants) ? item.participants : [],

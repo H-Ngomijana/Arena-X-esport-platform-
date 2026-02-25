@@ -6,8 +6,6 @@ import DeviceWarning from "@/components/tournament/DeviceWarning";
 import PaymentForm from "@/components/tournament/PaymentForm";
 import MtnWaiting from "@/components/tournament/MtnWaiting";
 import PaymentTimeout from "@/components/tournament/PaymentTimeout";
-import ManualPaymentForm from "@/components/tournament/ManualPaymentForm";
-import ManualPaymentSuccess from "@/components/tournament/ManualPaymentSuccess";
 import {
   createJoinRequest,
   getCurrentUser,
@@ -42,8 +40,6 @@ const PaymentFlow = () => {
   const [txRef, setTxRef] = useState("");
   const [transactionId, setTransactionId] = useState("");
   const [autoRedirected, setAutoRedirected] = useState(false);
-  const [manualSuccess, setManualSuccess] = useState(false);
-  const [manualDetails, setManualDetails] = useState(null);
   const [redirectCountdown, setRedirectCountdown] = useState(0);
   const [redirectTarget, setRedirectTarget] = useState("");
   const timeoutRef = useRef(null);
@@ -77,36 +73,6 @@ const PaymentFlow = () => {
       amount_paid: amount,
       approval_status: "awaiting_approval",
     });
-  };
-
-  const submitManualPayment = ({ name, phone, amount: sentAmount, note }) => {
-    const manualRef = `MANUAL-${Date.now()}`;
-    createJoinRequest({
-      tournament_id: tournament.id,
-      tournament_name: tournament.name,
-      user_email: currentUser.email,
-      user_name: name,
-      profile_type: profileType === "solo" ? "solo" : "team",
-      team_id: profileType === "team" ? team?.id : undefined,
-      team_name: profileType === "team" ? team?.name : undefined,
-      solo_profile_id: profileType === "solo" ? soloProfile?.id : undefined,
-      payment_status: "manual_pending",
-      payment_method: "manual",
-      payment_reference: manualRef,
-      sender_name: name,
-      sender_number: phone,
-      amount_paid: Number(sentAmount),
-      manual_note: note || "",
-      approval_status: "awaiting_approval",
-    });
-    setManualDetails({
-      name,
-      phone,
-      amount: Number(sentAmount),
-      tournamentName: tournament.name,
-      currency,
-    });
-    setManualSuccess(true);
   };
 
   const handleFreeJoin = () => {
@@ -279,25 +245,9 @@ const PaymentFlow = () => {
         <h1 className="text-center text-3xl font-display font-black">PAY TO JOIN TOURNAMENT</h1>
 
         {!isMobile ? (
-          <>
-            <DeviceWarning onBack={() => navigate(-1)} />
-            <div className="text-center text-white/40 text-sm">OR</div>
-            {!manualSuccess ? (
-              <ManualPaymentForm
-                tournament={tournament}
-                defaultName={currentUser.name}
-                defaultAmount={amount}
-                expanded
-                onSuccess={submitManualPayment}
-              />
-            ) : (
-              <ManualPaymentSuccess details={manualDetails} tournamentId={tournament.id} />
-            )}
-          </>
+          <DeviceWarning onBack={() => navigate(-1)} />
         ) : paymentSuccess ? (
           <PaymentSuccess amount={amount} currency={currency} reference={txRef} tournamentId={tournament.id} />
-        ) : manualSuccess ? (
-          <ManualPaymentSuccess details={manualDetails} tournamentId={tournament.id} />
         ) : paymentTimeout ? (
           <PaymentTimeout onRetry={resetState} tournamentId={tournament.id} />
         ) : paymentInitiated ? (
@@ -322,19 +272,6 @@ const PaymentFlow = () => {
             numberError={numberError}
             onProceed={startPayment}
           />
-        )}
-
-        {isMobile && !paymentInitiated && !paymentSuccess && !manualSuccess && (
-          <>
-            <div className="text-center text-white/40 text-sm">OR</div>
-            <ManualPaymentForm
-              tournament={tournament}
-              defaultName={senderName || currentUser.name}
-              defaultPhone={senderNumber}
-              defaultAmount={amount}
-              onSuccess={submitManualPayment}
-            />
-          </>
         )}
       </div>
       {redirectCountdown > 0 && (

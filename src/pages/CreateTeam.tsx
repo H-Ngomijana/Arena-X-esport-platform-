@@ -14,12 +14,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { games } from "@/lib/mock-data";
 import { getTeams, saveTeams } from "@/lib/storage";
 import { uploadMediaFile } from "@/lib/media-upload";
+import { useGames } from "@/context/GamesContext";
 
 const CreateTeam = () => {
   const navigate = useNavigate();
+  const { games } = useGames();
   const [formData, setFormData] = useState({
     name: "",
     tag: "",

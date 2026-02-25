@@ -5,7 +5,6 @@ import GlowButton from "@/components/GlowButton";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getTournaments, getTeams, getSoloProfiles, getCurrentUser, createJoinRequest, getPageBackgrounds, getMatches } from "@/lib/storage";
-import { games } from "@/lib/mock-data";
 import TeamCard from "@/components/TeamCard";
 import CreateSoloProfileDialog from "@/components/tournament/CreateSoloProfileDialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -27,7 +26,7 @@ const Tournament = () => {
 
   const id = searchParams.get("id");
   const [tournamentData, setTournamentData] = useState<any | undefined>(() => getTournaments().find((t: any) => t.id === id));
-  const game = getGameById(tournamentData?.game_id || "") || games.find((g) => g.id === tournamentData?.game_id);
+  const game = getGameById(tournamentData?.game_id || "");
   const tournamentTeams = getTeams().filter((t) => tournamentData?.registered_teams?.includes(t.id));
   const tournamentMatches = getMatches().filter((m) => m.tournament_id === id);
   const currentUser = getCurrentUser();

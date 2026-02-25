@@ -10,13 +10,14 @@ import ResultsTab from "@/components/tournament/ResultsTab";
 import EvidenceTab from "@/components/tournament/EvidenceTab";
 import StandingsTab from "@/components/tournament/StandingsTab";
 import EvidenceLightbox from "@/components/tournament/EvidenceLightbox";
-import { games, teams, users } from "@/lib/mock-data";
-import { getCurrentUser, getJoinRequests, getMatches, getTournaments, updateMatch } from "@/lib/storage";
+import { useGames } from "@/context/GamesContext";
+import { getCurrentUser, getJoinRequests, getMatches, getSoloProfiles, getTeams, getTournaments, updateMatch } from "@/lib/storage";
 
 const TournamentLive = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const tournamentId = searchParams.get("id") || "";
+  const { games } = useGames();
   const currentUser = useMemo(() => getCurrentUser(), []);
 
   const [tournament, setTournament] = useState(() => getTournaments().find((item) => item.id === tournamentId));
@@ -68,13 +69,21 @@ const TournamentLive = () => {
   }
 
   const game = games.find((item) => item.id === tournament.game_id);
+  const teams = getTeams();
+  const soloProfiles = getSoloProfiles();
   const teamsById = Object.fromEntries(teams.map((item) => [item.id, item]));
   const topPlayers = tournament.top_players_override?.length
     ? tournament.top_players_override
-    : [...users]
+    : [...soloProfiles]
         .sort((a, b) => (b.rating || 0) - (a.rating || 0))
         .slice(0, 5)
-        .map((user, index) => ({ rank: index + 1, name: user.name, mmr: user.rating, badge: "ADVANCING" }));
+        .map((profile, index) => ({
+          rank: index + 1,
+          name: profile.user_name || profile.in_game_name || profile.user_email,
+          email: profile.user_email,
+          mmr: profile.rating,
+          badge: "ADVANCING",
+        }));
   const topTeams = tournament.top_teams_override?.length
     ? tournament.top_teams_override
     : teams
