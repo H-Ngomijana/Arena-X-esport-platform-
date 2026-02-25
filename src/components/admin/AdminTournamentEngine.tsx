@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus, Pencil, Trash2, ChevronDown, ChevronUp, Zap, Star, Upload, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -46,6 +46,23 @@ const AdminTournamentEngine = ({ logAction }: { logAction: (a: string) => void }
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState(defaultForm);
+
+  useEffect(() => {
+    const refresh = () => setTournamentsList(getTournaments());
+    const onChange = (event: Event) => {
+      const detail = (event as CustomEvent<{ key?: string }>).detail;
+      if (!detail?.key || detail.key === "tournaments" || detail.key === "remote_sync") refresh();
+    };
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === "tournaments" || event.key === null) refresh();
+    };
+    window.addEventListener("arenax:data-changed", onChange as EventListener);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener("arenax:data-changed", onChange as EventListener);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, []);
 
   const openCreate = () => {
     setEditId(null);

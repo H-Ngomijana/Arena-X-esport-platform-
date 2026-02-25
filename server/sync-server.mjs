@@ -105,9 +105,11 @@ app.get("/health", (_req, res) => {
 
 app.get("/sync/snapshot", (_req, res) => {
   const db = readDb();
+  const now = Date.now();
+  const maxSkewMs = 5 * 60 * 1000;
   const records = Object.entries(db.records).map(([key, value]) => ({
     key,
-    ts: Number(value?.ts || 0),
+    ts: Math.min(Number(value?.ts || 0), now + maxSkewMs),
     value: typeof value?.value === "undefined" ? null : value.value,
   }));
   res.json({ records });
@@ -229,12 +231,16 @@ app.post("/sync/merge", (req, res) => {
   const incoming = Array.isArray(req.body?.records) ? req.body.records : [];
   const db = readDb();
   const current = db.records || {};
+  const now = Date.now();
+  const maxSkewMs = 5 * 60 * 1000;
 
   for (const row of incoming) {
     const key = String(row?.key || "");
     if (!key) continue;
-    const incomingTs = Number(row?.ts || 0);
-    const existingTs = Number(current[key]?.ts || 0);
+    const incomingTsRaw = Number(row?.ts || 0);
+    const incomingTs = Math.min(incomingTsRaw, now + maxSkewMs);
+    const existingTsRaw = Number(current[key]?.ts || 0);
+    const existingTs = existingTsRaw > now + maxSkewMs ? 0 : existingTsRaw;
     if (incomingTs >= existingTs) {
       current[key] = {
         ts: incomingTs,
