@@ -7,12 +7,12 @@ import PaymentForm from "@/components/tournament/PaymentForm";
 import MtnWaiting from "@/components/tournament/MtnWaiting";
 import PaymentTimeout from "@/components/tournament/PaymentTimeout";
 import {
-  createJoinRequest,
   getCurrentUser,
-  getJoinRequests,
+  getMyTournamentJoinRequest,
   getSoloProfiles,
   getTeams,
   getTournaments,
+  upsertMyTournamentJoinRequest,
 } from "@/lib/storage";
 import { initiateMomoPayment, verifyMomoPayment } from "@/lib/payment";
 
@@ -42,6 +42,7 @@ const PaymentFlow = () => {
   const [autoRedirected, setAutoRedirected] = useState(false);
   const [redirectCountdown, setRedirectCountdown] = useState(0);
   const [redirectTarget, setRedirectTarget] = useState("");
+  const [refreshTick, setRefreshTick] = useState(0);
   const timeoutRef = useRef(null);
 
   if (!tournament) {
@@ -50,16 +51,24 @@ const PaymentFlow = () => {
 
   const amount = Number(tournament.entry_fee_amount ?? tournament.entry_fee ?? 0);
   const currency = tournament.entry_fee_currency || "RWF";
+  const myJoinRequest = useMemo(
+    () => getMyTournamentJoinRequest(tournament.id, currentUser.email),
+    [tournament.id, currentUser.email, refreshTick]
+  );
   const mtnRegex = /^07[89]\d{7}$/;
   const numberError = senderNumber && !mtnRegex.test(senderNumber) ? "Please enter a valid MTN Rwanda number (078/079 XXXXXXX)" : "";
   const canProceed = senderName.trim() && mtnRegex.test(senderNumber);
   const isMobile = isMobileDevice();
 
-  const createPaidRequest = async (reference) => {
-    createJoinRequest({
-      tournament_id: tournament.id,
+  useEffect(() => {
+    const onChange = () => setRefreshTick((n) => n + 1);
+    window.addEventListener("arenax:data-changed", onChange);
+    return () => window.removeEventListener("arenax:data-changed", onChange);
+  }, []);
+
+  const createPaidRequest = async (reference, flwTransactionId) => {
+    upsertMyTournamentJoinRequest(tournament.id, currentUser.email, {
       tournament_name: tournament.name,
-      user_email: currentUser.email,
       user_name: currentUser.name,
       profile_type: profileType === "solo" ? "solo" : "team",
       team_id: profileType === "team" ? team?.id : undefined,
@@ -68,6 +77,7 @@ const PaymentFlow = () => {
       payment_status: "paid",
       payment_method: "mtn_momo",
       payment_reference: reference,
+      flw_transaction_id: flwTransactionId || undefined,
       sender_name: senderName.trim(),
       sender_number: senderNumber.trim(),
       amount_paid: amount,
@@ -77,16 +87,15 @@ const PaymentFlow = () => {
 
   const handleFreeJoin = () => {
     const reference = `ARX-FREE-${Date.now()}`;
-    createJoinRequest({
-      tournament_id: tournament.id,
+    upsertMyTournamentJoinRequest(tournament.id, currentUser.email, {
       tournament_name: tournament.name,
-      user_email: currentUser.email,
       user_name: currentUser.name,
       profile_type: profileType === "solo" ? "solo" : "team",
       team_id: profileType === "team" ? team?.id : undefined,
       team_name: profileType === "team" ? team?.name : undefined,
       solo_profile_id: profileType === "solo" ? soloProfile?.id : undefined,
       payment_status: "free",
+      payment_method: "free",
       payment_reference: reference,
       sender_name: currentUser.name,
       sender_number: "N/A",
@@ -105,6 +114,14 @@ const PaymentFlow = () => {
   }, [amount]);
 
   const startPayment = async () => {
+    if (myJoinRequest?.approval_status === "approved") {
+      navigate(`/TournamentLive?id=${tournament.id}`);
+      return;
+    }
+    if (myJoinRequest?.approval_status === "awaiting_approval") {
+      toast.info("Your request is already awaiting admin approval.");
+      return;
+    }
     if (!canProceed) {
       setShake(true);
       toast.error("Please fill valid name and MTN number");
@@ -169,16 +186,13 @@ const PaymentFlow = () => {
     let stop = false;
 
     const poll = setInterval(async () => {
-      const result = await verifyMomoPayment({
-        transaction_id: transactionId || txRef,
-        tx_ref: txRef,
-      });
+      const result = await verifyMomoPayment({ tx_ref: txRef, transaction_id: transactionId || txRef });
 
       if (result?.success && !stop) {
         stop = true;
         clearInterval(poll);
         if (timeoutRef.current) clearTimeout(timeoutRef.current);
-        await createPaidRequest(txRef);
+        await createPaidRequest(txRef, result?.flw_transaction_id);
         setPaymentSuccess(true);
         setPaymentInitiated(false);
       }
@@ -203,20 +217,16 @@ const PaymentFlow = () => {
   useEffect(() => {
     if (!paymentSuccess || autoRedirected) return;
     const timer = setInterval(() => {
-      const request = getJoinRequests().find(
-        (item) =>
-          item.payment_reference === txRef &&
-          item.user_email === currentUser.email
-      );
+      const request = getMyTournamentJoinRequest(tournament.id, currentUser.email);
       if (request?.approval_status === "approved") {
         setAutoRedirected(true);
-        sessionStorage.setItem("arenax_auto_join_redirect_ref", request.payment_reference);
+        sessionStorage.setItem("arenax_auto_join_redirect_ref", request.payment_reference || txRef);
         setRedirectTarget(`/TournamentLive?id=${request.tournament_id}`);
         setRedirectCountdown(3);
       }
     }, 2000);
     return () => clearInterval(timer);
-  }, [paymentSuccess, txRef, currentUser.email, autoRedirected, navigate]);
+  }, [paymentSuccess, txRef, currentUser.email, autoRedirected, navigate, tournament.id]);
 
   useEffect(() => {
     if (redirectCountdown <= 0 || !redirectTarget) return;
@@ -244,6 +254,30 @@ const PaymentFlow = () => {
         </div>
         <h1 className="text-center text-3xl font-display font-black">PAY TO JOIN TOURNAMENT</h1>
 
+        {myJoinRequest?.approval_status === "approved" ? (
+          <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-6 text-center space-y-3">
+            <p className="text-emerald-300 font-bold">Already Approved</p>
+            <p className="text-white/70">You have already joined this tournament with this account.</p>
+            <button
+              onClick={() => navigate(`/TournamentLive?id=${tournament.id}`)}
+              className="h-11 px-5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-bold"
+            >
+              ENTER TOURNAMENT
+            </button>
+          </div>
+        ) : myJoinRequest?.approval_status === "awaiting_approval" ? (
+          <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-6 text-center space-y-3">
+            <p className="text-amber-300 font-bold">Awaiting Admin Approval</p>
+            <p className="text-white/70">Payment already submitted. No need to pay again.</p>
+            <button
+              onClick={() => navigate(`/Tournament?id=${tournament.id}`)}
+              className="h-11 px-5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold"
+            >
+              BACK TO TOURNAMENT
+            </button>
+          </div>
+        ) : (
+          <>
         {!isMobile ? (
           <DeviceWarning onBack={() => navigate(-1)} />
         ) : paymentSuccess ? (
@@ -272,6 +306,8 @@ const PaymentFlow = () => {
             numberError={numberError}
             onProceed={startPayment}
           />
+        )}
+          </>
         )}
       </div>
       {redirectCountdown > 0 && (

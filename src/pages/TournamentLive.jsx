@@ -11,7 +11,7 @@ import EvidenceTab from "@/components/tournament/EvidenceTab";
 import StandingsTab from "@/components/tournament/StandingsTab";
 import EvidenceLightbox from "@/components/tournament/EvidenceLightbox";
 import { useGames } from "@/context/GamesContext";
-import { getCurrentUser, getJoinRequests, getMatches, getSoloProfiles, getTeams, getTournaments, updateMatch } from "@/lib/storage";
+import { getCurrentUser, getMatches, getMyTournamentJoinRequest, getSoloProfiles, getTeams, getTournaments, updateMatch } from "@/lib/storage";
 
 const TournamentLive = () => {
   const navigate = useNavigate();
@@ -26,21 +26,15 @@ const TournamentLive = () => {
   const [lightboxImages, setLightboxImages] = useState([]);
   const [lightboxIndex, setLightboxIndex] = useState(0);
 
-  const approved = useMemo(
-    () =>
-      getJoinRequests().some(
-        (item) =>
-          item.tournament_id === tournamentId &&
-          item.user_email === currentUser.email &&
-          item.approval_status === "approved"
-      ),
-    [currentUser.email, tournamentId]
-  );
+  const approved = useMemo(() => {
+    const req = getMyTournamentJoinRequest(tournamentId, currentUser.email);
+    return req?.approval_status === "approved";
+  }, [currentUser.email, tournamentId, tournament?.id, matches.length]);
 
   useEffect(() => {
     if (!approved) {
       toast.error("You need to be approved to enter.");
-      navigate(`/Tournament?id=${tournamentId}`);
+      navigate(`/Tournament?id=${tournamentId}&message=not_approved`);
     }
   }, [approved, navigate, tournamentId]);
 

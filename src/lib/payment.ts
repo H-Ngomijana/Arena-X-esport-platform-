@@ -136,14 +136,26 @@ export async function initiateMomoPayment(payload: {
 }
 
 export async function verifyMomoPayment(payload: { transaction_id: string; tx_ref?: string }) {
+  const body = payload.tx_ref ? { tx_ref: payload.tx_ref } : payload;
   try {
-    const response = await fetch("/functions/verifyPayment", {
+    let response = await fetch("/functions/verifyMomoPayment", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(body),
     });
+    if (!response.ok) {
+      response = await fetch("/functions/verifyPayment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+    }
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    return await response.json();
+    const data = await response.json();
+    return {
+      ...data,
+      flw_transaction_id: data?.flw_transaction_id || data?.id || data?.flw_ref || null,
+    };
   } catch {
     const ref = payload.tx_ref || payload.transaction_id;
     const sim = readSimPayments();
@@ -157,7 +169,7 @@ export async function verifyMomoPayment(payload: { transaction_id: string; tx_re
         amount: row.amount,
         currency: row.currency,
         tx_ref: ref,
-        flw_ref: `SIM-${ref}`,
+        flw_transaction_id: `SIM-${ref}`,
       };
     }
     return { success: false };

@@ -13,6 +13,8 @@ const ReadyMatchCard = ({ match, currentUser, onRefresh }) => {
   const opponent = (match.participants || []).find((p) => p.email !== currentUser.email);
   const allReady = (match.participants || []).length > 1 && (match.participants || []).every((p) => p.ready_status);
 
+  if (!myParticipant) return null;
+
   const markReady = () => {
     const participants = (match.participants || []).map((p) =>
       p.email === currentUser.email ? { ...p, ready_status: true, ready_at: new Date().toISOString() } : p
@@ -57,4 +59,3 @@ const ReadyMatchCard = ({ match, currentUser, onRefresh }) => {
 };
 
 export default ReadyMatchCard;
-

@@ -82,6 +82,7 @@ export interface JoinRequest {
   payment_status: "pending" | "paid" | "failed" | "refunded" | "free" | "manual_pending";
   payment_method?: "mtn_momo" | "manual" | "free";
   payment_reference: string;
+  flw_transaction_id?: string;
   sender_name: string;
   sender_number: string;
   amount_paid: number;
@@ -360,6 +361,20 @@ export function getJoinRequests() {
   return safeRead<JoinRequest[]>(KEYS.joinRequests, []);
 }
 
+export function getMyJoinRequests(userEmail: string) {
+  return getJoinRequests().filter((item) => item.user_email === userEmail);
+}
+
+export function getMyTournamentJoinRequest(tournamentId: string, userEmail: string) {
+  return getJoinRequests()
+    .filter((item) => item.tournament_id === tournamentId && item.user_email === userEmail)
+    .sort(
+      (a, b) =>
+        new Date(b.approved_at || b.created_at).getTime() -
+        new Date(a.approved_at || a.created_at).getTime()
+    )[0];
+}
+
 export function createJoinRequest(payload: Omit<JoinRequest, "id" | "created_at">) {
   const entry: JoinRequest = {
     id: Date.now().toString(),
@@ -372,6 +387,36 @@ export function createJoinRequest(payload: Omit<JoinRequest, "id" | "created_at"
   const all = getJoinRequests();
   safeWrite(KEYS.joinRequests, [entry, ...all]);
   return entry;
+}
+
+export function upsertMyTournamentJoinRequest(
+  tournamentId: string,
+  userEmail: string,
+  payload: Omit<JoinRequest, "id" | "created_at" | "tournament_id" | "user_email">
+) {
+  const all = getJoinRequests();
+  const existing = all.find(
+    (item) => item.tournament_id === tournamentId && item.user_email === userEmail
+  );
+  if (existing) {
+    const next = all.map((item) =>
+      item.id === existing.id
+        ? {
+            ...item,
+            ...payload,
+            tournament_id: tournamentId,
+            user_email: userEmail,
+          }
+        : item
+    );
+    safeWrite(KEYS.joinRequests, next);
+    return next.find((item) => item.id === existing.id);
+  }
+  return createJoinRequest({
+    tournament_id: tournamentId,
+    user_email: userEmail,
+    ...payload,
+  } as JoinRequest);
 }
 
 export function updateJoinRequest(id: string, updates: Partial<JoinRequest>) {
@@ -438,8 +483,21 @@ export function getUnreadNotificationCount(userEmail: string) {
 }
 
 export function getCurrentUser() {
+  const stored = safeRead<{ id?: string; name?: string; email?: string } | null>(
+    KEYS.currentUser,
+    null
+  );
+  if (!stored?.email) {
+    const seed = Math.random().toString(36).slice(2, 8);
+    const guest = {
+      id: `guest-${seed}`,
+      name: `Guest-${seed.toUpperCase()}`,
+      email: `guest-${seed}@guest.local`,
+    };
+    localStorage.setItem(KEYS.currentUser, JSON.stringify(guest));
+    return guest;
+  }
   const fallback = users[0];
-  const stored = safeRead<{ id?: string; name?: string; email?: string } | null>(KEYS.currentUser, null);
   return {
     id: stored?.id || fallback.id,
     name: stored?.name || fallback.name,

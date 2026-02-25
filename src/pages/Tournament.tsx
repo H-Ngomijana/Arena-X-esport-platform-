@@ -4,7 +4,7 @@ import { Share2, Calendar, Users, Trophy, Shield, CheckCheck } from "lucide-reac
 import GlowButton from "@/components/GlowButton";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getTournaments, getTeams, getSoloProfiles, getCurrentUser, createJoinRequest, getPageBackgrounds, getMatches } from "@/lib/storage";
+import { getTournaments, getTeams, getSoloProfiles, getCurrentUser, createJoinRequest, getPageBackgrounds, getMatches, getMyTournamentJoinRequest } from "@/lib/storage";
 import TeamCard from "@/components/TeamCard";
 import CreateSoloProfileDialog from "@/components/tournament/CreateSoloProfileDialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -25,6 +25,7 @@ const Tournament = () => {
   const { getGameById } = useGames();
 
   const id = searchParams.get("id");
+  const accessMessage = searchParams.get("message");
   const [tournamentData, setTournamentData] = useState<any | undefined>(() => getTournaments().find((t: any) => t.id === id));
   const game = getGameById(tournamentData?.game_id || "");
   const tournamentTeams = getTeams().filter((t) => tournamentData?.registered_teams?.includes(t.id));
@@ -69,6 +70,10 @@ const Tournament = () => {
       ),
     [allSoloProfiles, currentUser.email, tournamentData?.game_id, reloadKey]
   );
+  const myRequest = useMemo(() => {
+    if (!id || !currentUser.email) return undefined;
+    return getMyTournamentJoinRequest(id, currentUser.email);
+  }, [id, currentUser.email, refreshTick]);
 
   const { setTheme, resetTheme } = useTheme();
 
@@ -84,6 +89,12 @@ const Tournament = () => {
     }
     return () => resetTheme();
   }, [game, setTheme, resetTheme]);
+
+  useEffect(() => {
+    if (accessMessage === "not_approved") {
+      toast.error("You are not approved for this tournament yet.");
+    }
+  }, [accessMessage]);
 
   useEffect(() => {
     const refresh = () => {
@@ -127,6 +138,14 @@ const Tournament = () => {
   };
 
   const joinTournament = () => {
+    if (myRequest?.approval_status === "approved") {
+      navigate(`/TournamentLive?id=${tournamentData.id}`);
+      return;
+    }
+    if (myRequest?.approval_status === "awaiting_approval") {
+      toast.info("Your request is awaiting admin approval.");
+      return;
+    }
     if (!selectedProfileId) {
       toast.error("Select a profile before joining");
       return;
@@ -419,7 +438,28 @@ const Tournament = () => {
             <Card className="p-6 border-white/10 space-y-4">
               <h3 className="font-display font-bold">Registration</h3>
 
-              {!hasAnyProfile ? (
+              {myRequest?.approval_status === "approved" ? (
+                <button
+                  onClick={() => navigate(`/TournamentLive?id=${tournamentData.id}`)}
+                  className="w-full h-12 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-bold"
+                >
+                  ENTER TOURNAMENT
+                </button>
+              ) : myRequest?.approval_status === "awaiting_approval" ? (
+                <button
+                  disabled
+                  className="w-full h-12 rounded-xl bg-white/10 text-white/50 font-bold"
+                >
+                  Awaiting Approval...
+                </button>
+              ) : myRequest?.approval_status === "rejected" ? (
+                <button
+                  disabled
+                  className="w-full h-12 rounded-xl bg-rose-500/20 text-rose-300 font-bold"
+                >
+                  Rejected - Contact Admin
+                </button>
+              ) : !hasAnyProfile ? (
                 <div className="space-y-3">
                   <p className="text-sm text-muted-foreground">Create a team or solo profile before joining.</p>
                   <div className="grid grid-cols-2 gap-2">
@@ -483,7 +523,7 @@ const Tournament = () => {
                   )}
                   <GlowButton className="w-full" disabled={!selectedProfileId} onClick={joinTournament}>
                     {entryAmount > 0
-                      ? `JOIN - Pay ${entryAmount.toLocaleString()} ${entryCurrency}`
+                      ? `JOIN - PAY ${entryAmount.toLocaleString()} ${entryCurrency}`
                       : "JOIN TOURNAMENT"}
                   </GlowButton>
                 </div>

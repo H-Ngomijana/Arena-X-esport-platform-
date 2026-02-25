@@ -20,7 +20,6 @@ const SYNC_KEYS = [
   "solo_profiles",
   "dispute_reports",
   "user_notifications",
-  "arenax_current_user",
   "arenax_system_settings",
   "submissions",
   "solo_registrations",

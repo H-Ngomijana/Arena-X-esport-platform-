@@ -26,6 +26,11 @@ export default async function initiateMomoPayment({
   };
 
   const response = await flw.MobileMoney.rwanda(payload);
-  return response;
+  return {
+    status: response?.status,
+    message: response?.message,
+    tx_ref,
+    flw_transaction_id: response?.data?.id || null,
+    data: response?.data || null,
+  };
 }
-
