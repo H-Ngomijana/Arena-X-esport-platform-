@@ -41,6 +41,8 @@ export const SubmissionsProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const syncApiConfigured = Boolean((import.meta.env.VITE_SYNC_API_BASE_URL || "").trim());
 
   // Load from localStorage on mount
   useEffect(() => {
@@ -52,13 +54,18 @@ export const SubmissionsProvider: React.FC<{ children: React.ReactNode }> = ({
         console.error("Failed to load submissions from localStorage", err);
       }
     }
+    setLoaded(true);
   }, []);
 
   // Persist to localStorage whenever submissions change
   useEffect(() => {
+    if (!loaded) return;
+    if (syncApiConfigured && submissions.length === 0 && localStorage.getItem("submissions") === null) {
+      return;
+    }
     localStorage.setItem("submissions", JSON.stringify(submissions));
     markKeyDirty("submissions");
-  }, [submissions]);
+  }, [submissions, loaded, syncApiConfigured]);
 
   const addSubmission = (
     submission: Omit<Submission, "id" | "created_at">

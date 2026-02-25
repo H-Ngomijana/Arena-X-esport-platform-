@@ -46,6 +46,8 @@ export const RegistrationsProvider: React.FC<{ children: React.ReactNode }> = ({
 }) => {
   const [soloRegistrations, setSoloRegistrations] = useState<SoloRegistration[]>([]);
   const [teamRegistrations, setTeamRegistrations] = useState<TeamRegistration[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const syncApiConfigured = Boolean((import.meta.env.VITE_SYNC_API_BASE_URL || "").trim());
 
   // Load from localStorage on mount
   useEffect(() => {
@@ -67,18 +69,27 @@ export const RegistrationsProvider: React.FC<{ children: React.ReactNode }> = ({
         console.error("Failed to load team registrations", err);
       }
     }
+    setLoaded(true);
   }, []);
 
   // Persist to localStorage
   useEffect(() => {
+    if (!loaded) return;
+    if (syncApiConfigured && soloRegistrations.length === 0 && localStorage.getItem("solo_registrations") === null) {
+      return;
+    }
     localStorage.setItem("solo_registrations", JSON.stringify(soloRegistrations));
     markKeyDirty("solo_registrations");
-  }, [soloRegistrations]);
+  }, [soloRegistrations, loaded, syncApiConfigured]);
 
   useEffect(() => {
+    if (!loaded) return;
+    if (syncApiConfigured && teamRegistrations.length === 0 && localStorage.getItem("team_registrations") === null) {
+      return;
+    }
     localStorage.setItem("team_registrations", JSON.stringify(teamRegistrations));
     markKeyDirty("team_registrations");
-  }, [teamRegistrations]);
+  }, [teamRegistrations, loaded, syncApiConfigured]);
 
   const registerSolo = (registration: Omit<SoloRegistration, "id" | "registered_at">) => {
     const newRegistration: SoloRegistration = {

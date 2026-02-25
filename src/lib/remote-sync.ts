@@ -50,7 +50,6 @@ function writeMeta(meta: SyncMeta) {
 }
 
 export function markKeyDirty(key: string) {
-  if (syncEnabled && !syncHydrated) return;
   const meta = readMeta();
   meta[key] = Date.now();
   writeMeta(meta);
