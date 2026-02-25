@@ -180,14 +180,41 @@ const Tournament = () => {
   };
 
   useEffect(() => {
-    if (profileType === "team" && myTeams.length > 0 && !selectedProfileId) {
-      setSelectedProfileId(myTeams[0].id);
+    if (!hasAnyProfile) {
+      setSelectedProfileId("");
       return;
     }
-    if (profileType === "solo" && mySoloProfiles.length > 0 && !selectedProfileId) {
-      setSelectedProfileId(mySoloProfiles[0].id);
+
+    if (profileType === "team") {
+      if (myTeams.length > 0) {
+        if (!selectedProfileId || !myTeams.some((team) => team.id === selectedProfileId)) {
+          setSelectedProfileId(myTeams[0].id);
+        }
+        return;
+      }
+      if (mySoloProfiles.length > 0) {
+        setProfileType("solo");
+        if (!selectedProfileId || !mySoloProfiles.some((profile) => profile.id === selectedProfileId)) {
+          setSelectedProfileId(mySoloProfiles[0].id);
+        }
+      }
+      return;
     }
-  }, [profileType, myTeams, mySoloProfiles, selectedProfileId, refreshTick]);
+
+    if (mySoloProfiles.length > 0) {
+      if (!selectedProfileId || !mySoloProfiles.some((profile) => profile.id === selectedProfileId)) {
+        setSelectedProfileId(mySoloProfiles[0].id);
+      }
+      return;
+    }
+
+    if (myTeams.length > 0) {
+      setProfileType("team");
+      if (!selectedProfileId || !myTeams.some((team) => team.id === selectedProfileId)) {
+        setSelectedProfileId(myTeams[0].id);
+      }
+    }
+  }, [profileType, myTeams, mySoloProfiles, selectedProfileId, refreshTick, hasAnyProfile]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
@@ -482,6 +509,10 @@ const Tournament = () => {
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       onClick={() => {
+                        if (!mySoloProfiles.length) {
+                          toast.error("No solo profile found for this game.");
+                          return;
+                        }
                         setProfileType("solo");
                         setSelectedProfileId("");
                       }}
@@ -491,6 +522,10 @@ const Tournament = () => {
                     </button>
                     <button
                       onClick={() => {
+                        if (!myTeams.length) {
+                          toast.error("No team found for this game.");
+                          return;
+                        }
                         setProfileType("team");
                         setSelectedProfileId("");
                       }}
@@ -526,6 +561,12 @@ const Tournament = () => {
                       </SelectContent>
                     </Select>
                   )}
+                  {profileType === "solo" && mySoloProfiles.length === 0 ? (
+                    <p className="text-xs text-amber-300">No solo profile available for this game. Create one first.</p>
+                  ) : null}
+                  {profileType === "team" && myTeams.length === 0 ? (
+                    <p className="text-xs text-amber-300">No team available for this game. Create one first.</p>
+                  ) : null}
                   <GlowButton className="w-full" disabled={!selectedProfileId} onClick={joinTournament}>
                     {entryAmount > 0
                       ? `JOIN - PAY ${entryAmount.toLocaleString()} ${entryCurrency}`
