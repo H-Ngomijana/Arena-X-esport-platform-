@@ -31,22 +31,28 @@ const Index = () => {
 
   useEffect(() => {
     let active = true;
-    let previousUrl = "";
+    let currentUrl = "";
 
     const loadHeroVideo = async () => {
       try {
         const blob = await getHomeHeroVideoBlob();
         if (!active) return;
-        if (previousUrl) URL.revokeObjectURL(previousUrl);
         if (blob) {
           const nextUrl = URL.createObjectURL(blob);
-          previousUrl = nextUrl;
+          if (currentUrl && currentUrl !== nextUrl) {
+            URL.revokeObjectURL(currentUrl);
+          }
+          currentUrl = nextUrl;
           hasHeroVideoRef.current = true;
           setHeroVideoUrl(nextUrl);
         } else {
           const meta = await getHomeHeroVideoMeta();
           if (!meta) {
             hasHeroVideoRef.current = false;
+            if (currentUrl) {
+              URL.revokeObjectURL(currentUrl);
+              currentUrl = "";
+            }
             setHeroVideoUrl("");
             return;
           }
@@ -78,7 +84,7 @@ const Index = () => {
       window.clearInterval(poll);
       window.removeEventListener("arenax:hero-video-updated", onHeroUpdate as EventListener);
       window.removeEventListener("arenax:data-changed", onDataChanged as EventListener);
-      if (previousUrl) URL.revokeObjectURL(previousUrl);
+      if (currentUrl) URL.revokeObjectURL(currentUrl);
     };
   }, []);
 

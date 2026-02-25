@@ -98,10 +98,10 @@ export async function saveHomeHeroVideo(file: File) {
     });
     if (!response.ok) throw new Error(`Upload failed: ${response.status}`);
     emitUpdate();
-  } catch {
-    // Keep local fallback in case sync server is unavailable.
-    await saveLocalFallback(file);
-    emitUpdate();
+  } catch (error) {
+    // In synced mode, local fallback creates device-only hero videos.
+    // Fail fast so admin can retry against backend and keep global consistency.
+    throw error instanceof Error ? error : new Error("Hero video upload failed");
   }
 }
 

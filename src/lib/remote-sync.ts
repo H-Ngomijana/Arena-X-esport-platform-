@@ -60,6 +60,51 @@ let pullInFlight = false;
 let syncEnabled = false;
 let syncHydrated = false;
 const LOCAL_WRITE_PROTECT_MS = 2 * 60 * 1000;
+const MAX_RECORD_BYTES = 2 * 1024 * 1024;
+
+function stripDataUrls(value: any): { value: any; changed: boolean } {
+  if (typeof value === "string") {
+    if (value.startsWith("data:")) return { value: "", changed: true };
+    return { value, changed: false };
+  }
+  if (Array.isArray(value)) {
+    let changed = false;
+    const next = value
+      .map((item) => {
+        const stripped = stripDataUrls(item);
+        changed = changed || stripped.changed;
+        return stripped.value;
+      })
+      .filter((item) => item !== null && typeof item !== "undefined");
+    return { value: next, changed };
+  }
+  if (value && typeof value === "object") {
+    let changed = false;
+    const next: Record<string, any> = {};
+    for (const [key, nested] of Object.entries(value)) {
+      const stripped = stripDataUrls(nested);
+      changed = changed || stripped.changed;
+      next[key] = stripped.value;
+    }
+    return { value: next, changed };
+  }
+  return { value, changed: false };
+}
+
+function normalizeLocalRecordValue(key: string, rawValue: string | null): string | null {
+  if (rawValue === null) return null;
+  if (rawValue.length <= MAX_RECORD_BYTES) return rawValue;
+  try {
+    const parsed = JSON.parse(rawValue);
+    const stripped = stripDataUrls(parsed);
+    if (!stripped.changed) return rawValue;
+    const normalized = JSON.stringify(stripped.value);
+    localStorage.setItem(key, normalized);
+    return normalized;
+  } catch {
+    return rawValue;
+  }
+}
 
 async function pushAll(baseUrl: string) {
   if (syncEnabled && !syncHydrated) return;
@@ -70,13 +115,16 @@ async function pushAll(baseUrl: string) {
     const records: SyncRecord[] = SYNC_KEYS.map((key) => ({
       key,
       ts: Number(meta[key] || 0),
-      value: localStorage.getItem(key),
+      value: normalizeLocalRecordValue(key, localStorage.getItem(key)),
     }));
-    await fetch(`${baseUrl}/sync/merge`, {
+    const response = await fetch(`${baseUrl}/sync/merge`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ records }),
     });
+    if (!response.ok) {
+      throw new Error(`Sync merge failed: ${response.status}`);
+    }
   } catch {
     // no-op: fallback remains local only
   } finally {

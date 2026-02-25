@@ -11,7 +11,6 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useGames } from "@/context/GamesContext";
 import { useTheme } from "@/context/ThemeContext";
-import { users } from "@/lib/mock-data";
 import { getTournaments, getTeams, getSoloProfiles, getPageBackgrounds } from "@/lib/storage";
 import CreateSoloProfileDialog from "@/components/tournament/CreateSoloProfileDialog";
 
@@ -28,7 +27,6 @@ const Game = () => {
   const game = getGameBySlug(slug || "");
   const gameTeams = getTeams().filter((item) => item.game_id === game?.id);
   const gameTournaments = getTournaments().filter((item) => item.game_id === game?.id);
-  const gameUsers = users.filter((item) => item.game_id === game?.id);
   const pageBackgrounds = getPageBackgrounds();
   const gamePageBackground = game?.background_url || game?.banner_url || pageBackgrounds.game_page_default;
   const soloProfiles = useMemo(
@@ -58,7 +56,10 @@ const Game = () => {
   }
 
   const topTeams = gameTeams.sort((a, b) => (b.rating || 0) - (a.rating || 0)).slice(0, 6);
-  const topPlayers = gameUsers.sort((a, b) => (b.rating || 0) - (a.rating || 0)).slice(0, 10);
+  const topPlayers = soloProfiles
+    .slice()
+    .sort((a, b) => Number(b.rating || 0) - Number(a.rating || 0))
+    .slice(0, 10);
   const tournamentsFiltered = gameTournaments.filter((item) => {
     if (activeFilter === "Open Registration") return item.status === "registration_open";
     if (activeFilter === "Live Now") return item.status === "in_progress";
@@ -98,8 +99,8 @@ const Game = () => {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <StatCard label="Active Tournaments" value={gameTournaments.length.toString()} icon={<Trophy size={18} />} />
           <StatCard label="Total Teams" value={gameTeams.length.toString()} icon={<Users size={18} />} />
-          <StatCard label="Ranked Players" value={gameUsers.length.toString()} icon={<BarChart3 size={18} />} />
-          <StatCard label="Total Tournaments" value="24" icon={<Zap size={18} />} />
+          <StatCard label="Ranked Players" value={soloProfiles.length.toString()} icon={<BarChart3 size={18} />} />
+          <StatCard label="Total Tournaments" value={gameTournaments.length.toString()} icon={<Zap size={18} />} />
         </div>
       </section>
 
@@ -247,11 +248,11 @@ const Game = () => {
                     {topPlayers.map((player, index) => (
                       <motion.tr key={player.id} whileHover={{ backgroundColor: "rgba(255,255,255,0.05)" }} className="border-white/10">
                         <TableCell className="font-bold">#{index + 1}</TableCell>
-                        <TableCell className="font-medium">{player.name}</TableCell>
+                        <TableCell className="font-medium">{player.in_game_name || player.user_name || player.user_email}</TableCell>
                         <TableCell>
-                          <span className="px-2 py-1 rounded-full text-xs bg-primary/20 text-primary">{player.rank_tier}</span>
+                          <span className="px-2 py-1 rounded-full text-xs bg-primary/20 text-primary">{player.rank_tier || "Bronze"}</span>
                         </TableCell>
-                        <TableCell className="text-right font-semibold">{player.rating}</TableCell>
+                        <TableCell className="text-right font-semibold">{player.rating || 0}</TableCell>
                       </motion.tr>
                     ))}
                   </TableBody>

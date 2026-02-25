@@ -33,7 +33,9 @@ export async function uploadMediaFile(file: File, scope = "uploads"): Promise<st
     if (!url) throw new Error("Missing media url");
     if (url.startsWith("http")) return url;
     return `${baseUrl}${url}`;
-  } catch {
-    return await toDataUrl(file);
+  } catch (error) {
+    // In synced deployments, failing over to local data URLs causes
+    // non-global state and oversized sync payloads. Hard-fail instead.
+    throw error instanceof Error ? error : new Error("Upload failed");
   }
 }
