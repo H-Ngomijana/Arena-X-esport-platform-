@@ -60,6 +60,7 @@ let pushInFlight = false;
 let pullInFlight = false;
 let syncEnabled = false;
 let syncHydrated = false;
+const LOCAL_WRITE_PROTECT_MS = 2 * 60 * 1000;
 
 async function pushAll(baseUrl: string) {
   if (syncEnabled && !syncHydrated) return;
@@ -99,6 +100,11 @@ async function pullAll(baseUrl: string) {
       if (!record?.key) continue;
       const localTs = Number(meta[record.key] || 0);
       const remoteTs = Number(record.ts || 0);
+      const localWriteIsRecent = localTs > 0 && Date.now() - localTs < LOCAL_WRITE_PROTECT_MS;
+      if (localWriteIsRecent && remoteTs >= localTs) {
+        // Protect recent local/admin actions from being rolled back by delayed remote snapshots.
+        continue;
+      }
       if (remoteTs <= localTs) continue;
 
       if (record.value === null || typeof record.value === "undefined") {
@@ -151,12 +157,18 @@ export function startRemoteSync() {
     pullAll(baseUrl);
     pushAll(baseUrl);
   };
+  const onDataChanged = () => {
+    // Push quickly after local writes to reduce conflict window.
+    pushAll(baseUrl);
+  };
   window.addEventListener("online", onOnline);
+  window.addEventListener("arenax:data-changed", onDataChanged as EventListener);
 
   return () => {
     window.clearInterval(pushTimer);
     window.clearInterval(pullTimer);
     window.removeEventListener("online", onOnline);
+    window.removeEventListener("arenax:data-changed", onDataChanged as EventListener);
     syncEnabled = false;
     syncHydrated = false;
     syncStarted = false;
