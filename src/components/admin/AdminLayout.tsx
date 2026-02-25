@@ -51,9 +51,13 @@ const AdminLayout = ({ activePanel, onPanelChange, children, userEmail, onLogout
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const currentLabel = navItems.find((n) => n.id === activePanel)?.label || "Command Center";
+  const selectPanel = (panelId: string, mobile = false) => {
+    onPanelChange(panelId);
+    if (mobile) setMobileOpen(false);
+  };
 
   const SidebarContent = ({ mobile = false }: { mobile?: boolean }) => (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full pointer-events-auto">
       <div className="p-4 border-b border-rose-500/20">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
@@ -68,19 +72,17 @@ const AdminLayout = ({ activePanel, onPanelChange, children, userEmail, onLogout
         </div>
       </div>
 
-      <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
+      <nav className="relative z-[1001] flex-1 p-2 space-y-1 overflow-y-auto pointer-events-auto">
         {navItems.map((item) => {
           const active = activePanel === item.id;
           return (
             <button
               type="button"
               key={item.id}
-              onClick={() => {
-                onPanelChange(item.id);
-                if (mobile) setMobileOpen(false);
-              }}
+              onPointerDown={() => selectPanel(item.id, mobile)}
+              onClick={() => selectPanel(item.id, mobile)}
               className={cn(
-                "relative z-20 pointer-events-auto w-full flex items-center gap-3 px-3 py-2.5 rounded-lg font-mono text-xs transition-all",
+                "relative z-[1002] pointer-events-auto touch-manipulation w-full flex items-center gap-3 px-3 py-2.5 rounded-lg font-mono text-xs transition-all",
                 active
                   ? "bg-rose-500/20 text-rose-300 border border-rose-500/30"
                   : "text-white/50 hover:text-white hover:bg-white/5 border border-transparent"
@@ -133,7 +135,7 @@ const AdminLayout = ({ activePanel, onPanelChange, children, userEmail, onLogout
     <div className="flex h-screen bg-[#07070c] font-mono overflow-hidden">
       <aside
         className={cn(
-          "hidden md:flex flex-col bg-[#0a0a0f] border-r border-rose-500/20 relative z-50 transition-all duration-300",
+          "hidden md:flex flex-col bg-[#0a0a0f] border-r border-rose-500/20 relative z-[1000] pointer-events-auto transition-all duration-300",
           collapsed ? "w-16" : "w-64"
         )}
       >

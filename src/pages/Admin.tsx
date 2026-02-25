@@ -17,9 +17,10 @@ import { getJoinRequests } from "@/lib/storage";
 const ADMIN_USERNAME = "ngomijana";
 const ADMIN_PASSWORD = "2468";
 const ADMIN_SESSION_KEY = "admin_session_v1";
+const ADMIN_PANEL_KEY = "admin_active_panel_v1";
 
 const Admin = () => {
-  const [activePanel, setActivePanel] = useState("dashboard");
+  const [activePanel, setActivePanel] = useState(() => sessionStorage.getItem(ADMIN_PANEL_KEY) || "dashboard");
   const [auditLogs, setAuditLogs] = useState<Array<{ action: string; admin: string; timestamp: string }>>([]);
   const [awaitingJoinRequests, setAwaitingJoinRequests] = useState(0);
   const [username, setUsername] = useState("");
@@ -71,11 +72,16 @@ const Admin = () => {
 
   const handleLogout = () => {
     sessionStorage.removeItem(ADMIN_SESSION_KEY);
+    sessionStorage.removeItem(ADMIN_PANEL_KEY);
     setIsAuthenticated(false);
     setActivePanel("dashboard");
     setUsername("");
     setPassword("");
   };
+
+  useEffect(() => {
+    sessionStorage.setItem(ADMIN_PANEL_KEY, activePanel);
+  }, [activePanel]);
 
   if (!user || user.role !== "admin") {
     return (
