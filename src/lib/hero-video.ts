@@ -4,6 +4,12 @@ const STORE_NAME = "kv";
 const HERO_VIDEO_KEY = "home_hero_video_blob";
 const HERO_VIDEO_META_KEY = "home_hero_video_meta";
 
+type SaveHeroVideoOptions = {
+  onProgress?: (progress: number) => void;
+  timeoutMs?: number;
+  maxRetries?: number;
+};
+
 const getSyncBaseUrl = () => {
   const configured = (import.meta.env.VITE_SYNC_API_BASE_URL || "").trim();
   if (configured) return configured;
@@ -79,24 +85,85 @@ async function clearLocalFallback() {
   await deleteValue(HERO_VIDEO_META_KEY);
 }
 
-export async function saveHomeHeroVideo(file: File) {
+function uploadHeroVideoWithRetry(
+  baseUrl: string,
+  file: File,
+  options: SaveHeroVideoOptions = {}
+): Promise<void> {
+  const timeoutMs = Math.max(30_000, Number(options.timeoutMs || 180_000));
+  const maxRetries = Math.max(0, Number(options.maxRetries ?? 2));
+  const onProgress = options.onProgress;
+
+  const runAttempt = (attempt: number): Promise<void> =>
+    new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("PUT", `${baseUrl}/media/home-hero`);
+      xhr.timeout = timeoutMs;
+      xhr.setRequestHeader("Content-Type", file.type || "video/mp4");
+      xhr.setRequestHeader("x-file-name", encodeURIComponent(file.name || "hero-video.mp4"));
+
+      xhr.upload.onprogress = (event) => {
+        if (!event.lengthComputable || !onProgress) return;
+        const progress = Math.min(100, Math.round((event.loaded / event.total) * 100));
+        onProgress(progress);
+      };
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          if (onProgress) onProgress(100);
+          resolve();
+          return;
+        }
+
+        const canRetry = attempt < maxRetries && (xhr.status >= 500 || xhr.status === 0);
+        if (canRetry) {
+          window.setTimeout(() => {
+            runAttempt(attempt + 1).then(resolve).catch(reject);
+          }, 700 * (attempt + 1));
+          return;
+        }
+        reject(new Error(`Upload failed: ${xhr.status || "network_error"}`));
+      };
+
+      xhr.onerror = () => {
+        const canRetry = attempt < maxRetries;
+        if (canRetry) {
+          window.setTimeout(() => {
+            runAttempt(attempt + 1).then(resolve).catch(reject);
+          }, 700 * (attempt + 1));
+          return;
+        }
+        reject(new Error("Upload failed: network_error"));
+      };
+
+      xhr.ontimeout = () => {
+        const canRetry = attempt < maxRetries;
+        if (canRetry) {
+          window.setTimeout(() => {
+            runAttempt(attempt + 1).then(resolve).catch(reject);
+          }, 700 * (attempt + 1));
+          return;
+        }
+        reject(new Error("Upload failed: timeout"));
+      };
+
+      xhr.send(file);
+    });
+
+  return runAttempt(0);
+}
+
+export async function saveHomeHeroVideo(file: File, options: SaveHeroVideoOptions = {}) {
   const baseUrl = getSyncBaseUrl();
   if (!baseUrl) {
     await saveLocalFallback(file);
+    options.onProgress?.(100);
     emitUpdate();
     return;
   }
 
   try {
-    const response = await fetch(`${baseUrl}/media/home-hero`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": file.type || "video/mp4",
-        "x-file-name": encodeURIComponent(file.name || "hero-video.mp4"),
-      },
-      body: file,
-    });
-    if (!response.ok) throw new Error(`Upload failed: ${response.status}`);
+    await uploadHeroVideoWithRetry(baseUrl, file, options);
     emitUpdate();
   } catch (error) {
     // In synced mode, local fallback creates device-only hero videos.

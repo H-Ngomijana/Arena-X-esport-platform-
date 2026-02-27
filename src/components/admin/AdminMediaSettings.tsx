@@ -38,6 +38,7 @@ const AdminMediaSettings = ({ logAction }: { logAction: (a: string) => void }) =
   const [mediaItems, setMediaItems] = useState<PlatformMediaItem[]>([]);
   const [uploading, setUploading] = useState(false);
   const [heroUploading, setHeroUploading] = useState(false);
+  const [heroUploadProgress, setHeroUploadProgress] = useState(0);
   const [heroMeta, setHeroMeta] = useState<{
     name: string;
     type: string;
@@ -148,6 +149,11 @@ const AdminMediaSettings = ({ logAction }: { logAction: (a: string) => void }) =
       toast.error("Please upload a video file");
       return;
     }
+    const supported = ["video/mp4", "video/webm", "video/ogg"];
+    if (!supported.includes(file.type)) {
+      toast.error("Use MP4 or WEBM for best compatibility.");
+      return;
+    }
     // Keep hard limit to avoid browser storage failures.
     if (file.size > 80 * 1024 * 1024) {
       toast.error("Video too large. Please use a file under 80MB.");
@@ -155,17 +161,24 @@ const AdminMediaSettings = ({ logAction }: { logAction: (a: string) => void }) =
     }
 
     setHeroUploading(true);
+    setHeroUploadProgress(0);
     try {
-      await saveHomeHeroVideo(file);
+      await saveHomeHeroVideo(file, {
+        onProgress: (progress) => setHeroUploadProgress(progress),
+        timeoutMs: 180_000,
+        maxRetries: 2,
+      });
       const meta = await getHomeHeroVideoMeta();
       setHeroMeta(meta);
       toast.success("Home hero video uploaded");
       logAction(`Uploaded home hero video: ${file.name}`);
     } catch (error) {
       console.error(error);
-      toast.error("Failed to upload hero video");
+      const message = error instanceof Error ? error.message : "Failed to upload hero video";
+      toast.error(`Hero upload failed: ${message}`);
     } finally {
       setHeroUploading(false);
+      setHeroUploadProgress(0);
       e.target.value = "";
     }
   };
@@ -219,12 +232,23 @@ const AdminMediaSettings = ({ logAction }: { logAction: (a: string) => void }) =
         </div>
         <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-4 space-y-3">
           <p className="font-mono text-[11px] text-white/60">
-            Upload a constant video for homepage hero background. It appears only when uploaded.
+            Upload a constant video for homepage hero background. Prefer MP4/H.264 under 80MB for faster, stable upload.
           </p>
           <label className="flex items-center justify-center gap-2 h-12 rounded-lg border border-dashed border-cyan-400/40 bg-black/20 text-cyan-300 font-mono text-xs cursor-pointer hover:bg-cyan-500/10 transition-colors">
-            {heroUploading ? "Uploading..." : "UPLOAD HERO VIDEO"}
+            {heroUploading ? `Uploading ${heroUploadProgress}%...` : "UPLOAD HERO VIDEO"}
             <input type="file" accept="video/*" className="hidden" onChange={handleHeroVideoUpload} disabled={heroUploading} />
           </label>
+          {heroUploading && (
+            <div className="space-y-1">
+              <div className="h-2 w-full rounded bg-white/10 overflow-hidden">
+                <div
+                  className="h-full bg-cyan-400 transition-all duration-200"
+                  style={{ width: `${heroUploadProgress}%` }}
+                />
+              </div>
+              <p className="font-mono text-[10px] text-cyan-300/80">{heroUploadProgress}% uploaded</p>
+            </div>
+          )}
           {heroMeta ? (
             <div className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-black/25 p-3">
               <div className="min-w-0">
