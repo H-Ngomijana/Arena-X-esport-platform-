@@ -9,7 +9,7 @@ import GameCard from "@/components/GameCard";
 import { useGames } from "@/context/GamesContext";
 import heroBanner from "@/assets/hero-banner.jpg";
 import HowItWorks from "@/components/HowItWorks";
-import { getAnnouncements, getMediaFeed, getTournaments } from "@/lib/storage";
+import { getMediaFeed, getMatches, getSoloProfiles, getTeams, getTournaments, getJoinRequests } from "@/lib/storage";
 import { getHomeHeroVideoBlob, getHomeHeroVideoMeta } from "@/lib/hero-video";
 import { useRealtimeRefresh } from "@/components/hooks/useRealtimeRefresh";
 
@@ -26,12 +26,52 @@ const Index = () => {
     .filter((t) => t.featured || t.status === "in_progress")
     .slice(0, 3);
   const featuredGames = games.slice(0, 4);
-  const mediaFeed = getMediaFeed().slice(0, 6);
-  const latestAnnouncements = getAnnouncements().slice(0, 5);
+  const allMediaFeed = getMediaFeed();
+  const mediaFeed = allMediaFeed.slice(0, 6);
+  const matches = getMatches();
+  const teams = getTeams();
+  const soloProfiles = getSoloProfiles();
+  const joinRequests = getJoinRequests();
+  const latestStageImage = allMediaFeed.find((item) => item.kind === "image")?.url || heroBanner;
   const [heroVideoUrl, setHeroVideoUrl] = useState<string>("");
   const [defaultVideoFailed, setDefaultVideoFailed] = useState(false);
   const hasHeroVideoRef = useRef(false);
   const resolvedHeroVideo = heroVideoUrl || (!defaultVideoFailed ? DEFAULT_HERO_VIDEO : "");
+
+  const parseAmount = (value: unknown): number => {
+    if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+    const cleaned = String(value ?? "").replace(/[^0-9.]/g, "");
+    const parsed = Number(cleaned);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+
+  const uniquePlayers = new Set<string>();
+  soloProfiles.forEach((profile) => {
+    if (profile.user_email) uniquePlayers.add(profile.user_email);
+  });
+  joinRequests.forEach((req) => {
+    if (req.user_email) uniquePlayers.add(req.user_email);
+  });
+  teams.forEach((team) => {
+    (team.members || []).forEach((member: string) => {
+      if (typeof member === "string" && member.includes("@")) uniquePlayers.add(member);
+    });
+    if (typeof team.captain_id === "string" && team.captain_id.includes("@")) uniquePlayers.add(team.captain_id);
+  });
+  const activePlayersCount = uniquePlayers.size;
+  const tournamentsCount = tournaments.length;
+  const prizeDistributedAmount = tournaments
+    .filter((t) => t.status === "completed")
+    .reduce((acc, t) => acc + parseAmount(t.prize_pool), 0);
+  const liveMatchesCount = matches.filter((m) => m.status === "live").length;
+
+  const compact = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
+  const activePlayersValue = activePlayersCount > 0 ? `${compact.format(activePlayersCount)}+` : "0";
+  const prizeDistributedValue = prizeDistributedAmount > 0 ? `${compact.format(prizeDistributedAmount)} RWF` : "0 RWF";
+  const liveMatchesValue =
+    liveMatchesCount > 0
+      ? liveMatchesCount
+      : tournaments.filter((t) => t.status === "in_progress").length;
 
   useEffect(() => {
     let active = true;
@@ -186,40 +226,26 @@ const Index = () => {
                   autoPlay
                   muted
                   loop
+                  preload="auto"
                   playsInline
                 />
               ) : (
-                <img src={heroBanner} alt="Arena visual" className="absolute inset-0 w-full h-full object-cover" />
+                <img src={latestStageImage} alt="Arena visual" className="absolute inset-0 w-full h-full object-cover" />
               )}
-              <div className="absolute inset-0 bg-gradient-to-t from-[#060a1d]/75 via-transparent to-[#040816]/45" />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#060a1d]/45 via-transparent to-[#040816]/20" />
             </motion.div>
           </div>
         </motion.div>
       </div>
     </section>
 
-    {latestAnnouncements.length > 0 && (
-      <section className="container mt-6">
-        <Link to="/announcements" className="block rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 hover:bg-amber-500/15 transition-colors">
-          <div className="flex items-center gap-3 text-sm">
-            <span className="px-2 py-1 rounded bg-amber-500 text-black text-[10px] font-mono font-bold tracking-widest">
-              ANNOUNCEMENTS
-            </span>
-            <span className="text-white/85 truncate">
-              {latestAnnouncements.map((item) => item.title).join(" | ")}
-            </span>
-          </div>
-        </Link>
-      </section>
-    )}
-
     {/* Stats */}
     <section className="container -mt-12 relative z-10">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard label="Active Players" value="93K+" icon={<Users size={18} />} trend="up" />
-        <StatCard label="Tournaments" value="157" icon={<Trophy size={18} />} trend="up" />
-        <StatCard label="Prize Distributed" value="$2.1M" icon={<Zap size={18} />} />
-        <StatCard label="Live Matches" value="24" icon={<Swords size={18} />} trend="up" />
+        <StatCard label="Active Players" value={activePlayersValue} icon={<Users size={18} />} trend="up" />
+        <StatCard label="Tournaments" value={tournamentsCount} icon={<Trophy size={18} />} trend="up" />
+        <StatCard label="Prize Distributed" value={prizeDistributedValue} icon={<Zap size={18} />} />
+        <StatCard label="Live Matches" value={liveMatchesValue} icon={<Swords size={18} />} trend="up" />
       </div>
     </section>
 
