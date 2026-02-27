@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Menu, X, Bell } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import BrandLogo from "@/components/BrandLogo";
 import { toast } from "sonner";
@@ -59,6 +59,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const currentUser = getCurrentUser();
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     const refresh = () => setUnreadCount(getUnreadNotificationCount(currentUser.email));
@@ -108,7 +109,24 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   }, [redirectCountdown, redirectTarget, navigate]);
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col relative overflow-x-hidden">
+      <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+        <motion.div
+          className="absolute -top-24 -left-20 h-72 w-72 rounded-full bg-cyan-500/10 blur-3xl"
+          animate={reduceMotion ? undefined : { x: [0, 25, 0], y: [0, 20, 0], opacity: [0.25, 0.4, 0.25] }}
+          transition={reduceMotion ? undefined : { duration: 9, repeat: Infinity, ease: "easeInOut" }}
+        />
+        <motion.div
+          className="absolute top-1/3 -right-20 h-80 w-80 rounded-full bg-fuchsia-500/10 blur-3xl"
+          animate={reduceMotion ? undefined : { x: [0, -20, 0], y: [0, -25, 0], opacity: [0.2, 0.35, 0.2] }}
+          transition={reduceMotion ? undefined : { duration: 11, repeat: Infinity, ease: "easeInOut" }}
+        />
+        <motion.div
+          className="absolute bottom-0 left-1/4 h-72 w-72 rounded-full bg-blue-500/10 blur-3xl"
+          animate={reduceMotion ? undefined : { x: [0, 15, 0], y: [0, -18, 0], opacity: [0.2, 0.3, 0.2] }}
+          transition={reduceMotion ? undefined : { duration: 10, repeat: Infinity, ease: "easeInOut" }}
+        />
+      </div>
       <header className="fixed top-0 left-0 right-0 z-50 nav-blur">
         <div className="container flex items-center justify-between h-16">
           <Link to="/" className="flex items-center gap-2">
@@ -204,7 +222,20 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         )}
       </AnimatePresence>
 
-      <main className="flex-1 pt-16">{children}</main>
+      <main className="flex-1 pt-16">
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={`${location.pathname}${location.search}`}
+            initial={reduceMotion ? false : { opacity: 0, y: 18, scale: 0.992, filter: "blur(5px)" }}
+            animate={reduceMotion ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+            exit={reduceMotion ? { opacity: 1 } : { opacity: 0, y: -12, scale: 0.996, filter: "blur(4px)" }}
+            transition={{ duration: reduceMotion ? 0.12 : 0.34, ease: "easeOut" }}
+            className="min-h-[calc(100vh-4rem)] will-change-transform"
+          >
+            {children}
+          </motion.div>
+        </AnimatePresence>
+      </main>
       {redirectCountdown > 0 && (
         <div className="fixed inset-0 z-[70] bg-black/70 flex items-center justify-center p-4">
           <div className="w-full max-w-sm rounded-2xl border border-emerald-500/30 bg-[#0a0a12] p-6 text-center">
