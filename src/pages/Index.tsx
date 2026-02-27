@@ -14,7 +14,6 @@ import { getHomeHeroVideoBlob, getHomeHeroVideoMeta } from "@/lib/hero-video";
 import { useRealtimeRefresh } from "@/components/hooks/useRealtimeRefresh";
 
 const DEFAULT_HERO_VIDEO = "/home-hero-default.mp4";
-const HOME_CYBER_BG = "/home-cyber-bg.jpeg";
 
 const Index = () => {
   useRealtimeRefresh({
@@ -98,12 +97,11 @@ const Index = () => {
     {/* Hero */}
     <section className="relative min-h-[85vh] flex items-center overflow-hidden">
       <div className="absolute inset-0">
-        <img src={HOME_CYBER_BG} alt="Cyberpunk gaming city" className="w-full h-full object-cover opacity-70" />
         {resolvedHeroVideo ? (
           <video
             key={resolvedHeroVideo}
             src={resolvedHeroVideo}
-            className="w-full h-full object-cover opacity-28 mix-blend-screen"
+            className="w-full h-full object-cover opacity-45"
             autoPlay
             muted
             loop
@@ -121,11 +119,10 @@ const Index = () => {
             }}
           />
         ) : (
-          <img src={heroBanner} alt="Arena" className="w-full h-full object-cover opacity-15" />
+          <img src={heroBanner} alt="Arena" className="w-full h-full object-cover opacity-40" />
         )}
-        <div className="absolute inset-0 bg-gradient-to-b from-[#060611]/35 via-[#090822]/55 to-[#060611]/90" />
-        <div className="absolute inset-0 bg-gradient-to-r from-[#05040f]/85 via-[#090a22]/35 to-[#05040f]/75" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(0,247,255,0.2),transparent_40%),radial-gradient(circle_at_80%_15%,rgba(255,0,153,0.2),transparent_35%)]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-background/40 via-background/70 to-background" />
+        <div className="absolute inset-0 bg-gradient-to-r from-background via-transparent to-background" />
       </div>
       <div className="container relative z-10">
         <motion.div
@@ -134,30 +131,30 @@ const Index = () => {
           transition={{ duration: 0.7 }}
           className="max-w-2xl"
         >
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-cyan-500/15 border border-cyan-300/30 text-cyan-300 text-xs font-mono mb-6 shadow-[0_0_20px_rgba(34,211,238,0.25)]">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-mono mb-6">
             <Zap size={12} /> SEASON 4 NOW LIVE
           </div>
-          <h1 className="text-5xl md:text-7xl font-display font-bold leading-[0.95] mb-6 text-white [text-shadow:0_0_22px_rgba(34,211,238,0.25)]">
+          <h1 className="text-5xl md:text-7xl font-display font-bold leading-[0.95] mb-6">
             COMPETE.<br />
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-cyan-300 via-fuchsia-300 to-cyan-200">CONQUER.</span><br />
+            <span className="gradient-text">CONQUER.</span><br />
             DOMINATE.
           </h1>
-          <p className="text-lg text-white/75 mb-8 max-w-md">
+          <p className="text-lg text-muted-foreground mb-8 max-w-md">
             Join thousands of players competing in tournaments across the most popular esports titles.
           </p>
           <div className="flex flex-wrap gap-3">
             <Link to="/tournaments">
-              <GlowButton size="lg" className="shadow-[0_0_30px_rgba(34,211,238,0.28)]">
+              <GlowButton size="lg">
                 <Swords size={18} /> Browse Tournaments
               </GlowButton>
             </Link>
             <Link to="/create-team">
-              <GlowButton variant="secondary" size="lg" className="border-fuchsia-300/30 text-white hover:bg-fuchsia-500/15">
+              <GlowButton variant="secondary" size="lg">
                 <Users size={18} /> Create Team
               </GlowButton>
             </Link>
             <Link to="/dashboard">
-              <GlowButton variant="secondary" size="lg" className="border-cyan-300/30 text-white hover:bg-cyan-500/15">
+              <GlowButton variant="secondary" size="lg">
                 Get Started Now <ArrowRight size={16} />
               </GlowButton>
             </Link>
