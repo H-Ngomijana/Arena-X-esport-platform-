@@ -95,13 +95,13 @@ const Index = () => {
   return (
   <div>
     {/* Hero */}
-    <section className="relative min-h-[85vh] flex items-center overflow-hidden">
+    <section className="relative min-h-[88vh] flex items-center overflow-hidden">
       <div className="absolute inset-0">
         {resolvedHeroVideo ? (
           <video
             key={resolvedHeroVideo}
             src={resolvedHeroVideo}
-            className="w-full h-full object-cover opacity-45"
+            className="w-full h-full object-cover opacity-42"
             autoPlay
             muted
             loop
@@ -109,55 +109,90 @@ const Index = () => {
             playsInline
             onError={() => {
               if (heroVideoUrl) {
-                // Remote/admin video failed: immediately fallback to bundled default.
                 setHeroVideoUrl("");
                 hasHeroVideoRef.current = false;
                 return;
               }
-              // Default video failed too: fallback to static image.
               setDefaultVideoFailed(true);
             }}
           />
         ) : (
           <img src={heroBanner} alt="Arena" className="w-full h-full object-cover opacity-40" />
         )}
-        <div className="absolute inset-0 bg-gradient-to-b from-background/40 via-background/70 to-background" />
-        <div className="absolute inset-0 bg-gradient-to-r from-background via-transparent to-background" />
+        <div className="absolute inset-0 bg-gradient-to-b from-background/35 via-background/70 to-background" />
+        <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/55 to-background/80" />
       </div>
-      <div className="container relative z-10">
+
+      <div className="container relative z-10 py-12">
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
+          initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7 }}
-          className="max-w-2xl"
+          transition={{ duration: 0.6 }}
+          className="grid lg:grid-cols-[1.05fr_0.95fr] gap-8 items-center"
         >
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-mono mb-6">
-            <Zap size={12} /> SEASON 4 NOW LIVE
+          <div className="max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-mono mb-6">
+              <Zap size={12} /> 5 GAMES FOR THE COMPETITION
+            </div>
+            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-display font-black leading-[0.92] mb-5">
+              HOST TOURNAMENTS
+              <br />
+              & COMPETE FOR
+              <br />
+              PRIZES & <span className="gradient-text">WIN</span>
+              <br />
+              ON ONE PLATFORM.
+            </h1>
+            <p className="text-sm sm:text-base text-white/72 mb-8 max-w-xl">
+              Create your own prize-pool tournaments or join existing ones. Everything from brackets to payouts happens
+              automatically for organizers and players.
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <Link to="/tournaments">
+                <GlowButton size="lg">
+                  <Swords size={18} /> Start Now
+                </GlowButton>
+              </Link>
+              <Link to="/dashboard">
+                <GlowButton variant="secondary" size="lg">
+                  Sign In <ArrowRight size={16} />
+                </GlowButton>
+              </Link>
+              <Link to="/create-team">
+                <GlowButton variant="secondary" size="lg">
+                  <Users size={18} /> Create Team
+                </GlowButton>
+              </Link>
+            </div>
           </div>
-          <h1 className="text-5xl md:text-7xl font-display font-bold leading-[0.95] mb-6">
-            COMPETE.<br />
-            <span className="gradient-text">CONQUER.</span><br />
-            DOMINATE.
-          </h1>
-          <p className="text-lg text-muted-foreground mb-8 max-w-md">
-            Join thousands of players competing in tournaments across the most popular esports titles.
-          </p>
-          <div className="flex flex-wrap gap-3">
-            <Link to="/tournaments">
-              <GlowButton size="lg">
-                <Swords size={18} /> Browse Tournaments
-              </GlowButton>
-            </Link>
-            <Link to="/create-team">
-              <GlowButton variant="secondary" size="lg">
-                <Users size={18} /> Create Team
-              </GlowButton>
-            </Link>
-            <Link to="/dashboard">
-              <GlowButton variant="secondary" size="lg">
-                Get Started Now <ArrowRight size={16} />
-              </GlowButton>
-            </Link>
+
+          <div className="relative hidden lg:block">
+            <motion.div
+              whileHover={{ y: -4, scale: 1.01 }}
+              className="relative h-[480px] rounded-[28px] border border-cyan-400/25 bg-slate-950/30 overflow-hidden shadow-[0_0_50px_rgba(59,130,246,0.28)]"
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-cyan-400/10 via-transparent to-blue-500/20" />
+              <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-20">
+                <span className="text-[10px] font-mono tracking-widest text-cyan-200/90">ARENA-X LIVE STAGE</span>
+                <span className="text-[10px] font-mono px-2 py-1 rounded-full bg-cyan-400/15 border border-cyan-300/35 text-cyan-200">
+                  PLAY NOW
+                </span>
+              </div>
+              {resolvedHeroVideo ? (
+                <video
+                  key={`${resolvedHeroVideo}-panel`}
+                  src={resolvedHeroVideo}
+                  className="absolute inset-0 w-full h-full object-cover"
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                />
+              ) : (
+                <img src={heroBanner} alt="Arena visual" className="absolute inset-0 w-full h-full object-cover" />
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-[#060a1d]/75 via-transparent to-[#040816]/45" />
+            </motion.div>
           </div>
         </motion.div>
       </div>
