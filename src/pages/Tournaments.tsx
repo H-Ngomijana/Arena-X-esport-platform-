@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Search } from "lucide-react";
-import TournamentCard from "@/components/TournamentCard";
+import { Search, Users, Trophy, Calendar, ArrowRight } from "lucide-react";
+import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { getPageBackgrounds, getTournaments } from "@/lib/storage";
 import { useRealtimeRefresh } from "@/components/hooks/useRealtimeRefresh";
@@ -74,9 +74,105 @@ const Tournaments = () => {
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map((t) => (
-            <TournamentCard key={t.id} {...t} />
-          ))}
+          {filtered.map((t, index) => {
+            const entryAmount = Number(t.entry_fee_amount ?? t.entry_fee ?? 0);
+            const entryCurrency = t.entry_fee_currency || "RWF";
+            const badge =
+              t.status === "in_progress"
+                ? "LIVE"
+                : t.status === "registration_open"
+                ? "REGISTRATION OPEN"
+                : t.status === "completed"
+                ? "COMPLETED"
+                : "COMING SOON";
+            return (
+              <motion.div
+                key={t.id}
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.35, delay: index * 0.05 }}
+                className="md:col-span-2 lg:col-span-3"
+              >
+                <Link to={`/tournament?id=${t.id}`} className="block group">
+                  <motion.div
+                    whileHover={{ y: -4 }}
+                    transition={{ duration: 0.2 }}
+                    className="overflow-hidden rounded-2xl border border-white/10 bg-[#0a0a12]/95 backdrop-blur-sm"
+                  >
+                    <div className="grid md:grid-cols-[1.15fr_1fr]">
+                      <div className="p-5 md:p-6 flex flex-col justify-between">
+                        <div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-[10px] uppercase tracking-widest text-cyan-300/80 font-mono">
+                              {t.game_name || "Tournament"}
+                            </span>
+                            <span className="text-white/20">|</span>
+                            <span
+                              className={cn(
+                                "px-2 py-1 rounded-full text-[10px] font-mono tracking-wider",
+                                t.status === "in_progress"
+                                  ? "bg-rose-500/20 text-rose-300"
+                                  : t.status === "registration_open"
+                                  ? "bg-emerald-500/20 text-emerald-300"
+                                  : "bg-white/10 text-white/65"
+                              )}
+                            >
+                              {badge}
+                            </span>
+                          </div>
+                          <h3 className="text-2xl font-display font-black text-white group-hover:text-cyan-300 transition-colors">
+                            {t.name}
+                          </h3>
+                          <p className="text-sm text-white/65 mt-2">
+                            {String(t.format || "").replace(/_/g, " ")} • {t.region || "Global"}
+                          </p>
+                        </div>
+                        <div className="mt-5 grid grid-cols-2 md:grid-cols-4 gap-3 text-xs font-mono text-white/70">
+                          <span className="inline-flex items-center gap-1.5">
+                            <Users size={12} />
+                            {t.registered_teams?.length || t.registered_count || 0}/{t.max_teams || 0}
+                          </span>
+                          <span className="inline-flex items-center gap-1.5">
+                            <Trophy size={12} />
+                            {t.prize_pool || "-"}
+                          </span>
+                          <span className="inline-flex items-center gap-1.5">
+                            <Calendar size={12} />
+                            {t.start_date ? new Date(t.start_date).toLocaleDateString() : "-"}
+                          </span>
+                          <span className="inline-flex items-center gap-1.5 text-amber-300">
+                            {entryAmount > 0 ? `${entryAmount.toLocaleString()} ${entryCurrency}` : "FREE"}
+                          </span>
+                        </div>
+                        <div className="mt-4 text-cyan-300 text-xs font-mono inline-flex items-center gap-1.5">
+                          View Tournament
+                          <ArrowRight size={12} className="group-hover:translate-x-1 transition-transform" />
+                        </div>
+                      </div>
+                      <div className="relative min-h-[190px] md:min-h-full">
+                        {t.banner_url ? (
+                          <motion.img
+                            whileHover={{ scale: 1.05 }}
+                            transition={{ duration: 0.4 }}
+                            src={t.banner_url}
+                            alt={t.name}
+                            className="absolute inset-0 h-full w-full object-cover"
+                          />
+                        ) : (
+                          <motion.div
+                            whileHover={{ scale: 1.03 }}
+                            transition={{ duration: 0.4 }}
+                            className="absolute inset-0 bg-gradient-to-br from-cyan-900/60 via-slate-900 to-fuchsia-900/50"
+                          />
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-l from-black/15 via-black/35 to-black/80 md:to-transparent" />
+                      </div>
+                    </div>
+                  </motion.div>
+                </Link>
+              </motion.div>
+            );
+          })}
         </div>
         {filtered.length === 0 && (
           <div className="text-center py-20 text-muted-foreground font-mono text-sm">No tournaments found</div>
