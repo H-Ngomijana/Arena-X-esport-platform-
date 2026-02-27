@@ -13,6 +13,8 @@ import { getAnnouncements, getMediaFeed, getTournaments } from "@/lib/storage";
 import { getHomeHeroVideoBlob, getHomeHeroVideoMeta } from "@/lib/hero-video";
 import { useRealtimeRefresh } from "@/components/hooks/useRealtimeRefresh";
 
+const DEFAULT_HERO_VIDEO = "/home-hero-default.mp4";
+
 const Index = () => {
   useRealtimeRefresh({
     keys: ["tournaments", "announcements", "media_feed", "arenax_games"],
@@ -27,7 +29,9 @@ const Index = () => {
   const mediaFeed = getMediaFeed().slice(0, 6);
   const latestAnnouncements = getAnnouncements().slice(0, 5);
   const [heroVideoUrl, setHeroVideoUrl] = useState<string>("");
+  const [defaultVideoFailed, setDefaultVideoFailed] = useState(false);
   const hasHeroVideoRef = useRef(false);
+  const resolvedHeroVideo = heroVideoUrl || (!defaultVideoFailed ? DEFAULT_HERO_VIDEO : "");
 
   useEffect(() => {
     let active = true;
@@ -93,14 +97,17 @@ const Index = () => {
     {/* Hero */}
     <section className="relative min-h-[85vh] flex items-center overflow-hidden">
       <div className="absolute inset-0">
-        {heroVideoUrl ? (
+        {resolvedHeroVideo ? (
           <video
-            src={heroVideoUrl}
+            src={resolvedHeroVideo}
             className="w-full h-full object-cover opacity-45"
             autoPlay
             muted
             loop
             playsInline
+            onError={() => {
+              if (!heroVideoUrl) setDefaultVideoFailed(true);
+            }}
           />
         ) : (
           <img src={heroBanner} alt="Arena" className="w-full h-full object-cover opacity-40" />
