@@ -99,14 +99,23 @@ const Index = () => {
       <div className="absolute inset-0">
         {resolvedHeroVideo ? (
           <video
+            key={resolvedHeroVideo}
             src={resolvedHeroVideo}
             className="w-full h-full object-cover opacity-45"
             autoPlay
             muted
             loop
+            preload="auto"
             playsInline
             onError={() => {
-              if (!heroVideoUrl) setDefaultVideoFailed(true);
+              if (heroVideoUrl) {
+                // Remote/admin video failed: immediately fallback to bundled default.
+                setHeroVideoUrl("");
+                hasHeroVideoRef.current = false;
+                return;
+              }
+              // Default video failed too: fallback to static image.
+              setDefaultVideoFailed(true);
             }}
           />
         ) : (
