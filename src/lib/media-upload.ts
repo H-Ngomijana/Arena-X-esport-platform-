@@ -5,17 +5,11 @@ const getBaseUrl = () => {
   return "";
 };
 
-const toDataUrl = (file: File): Promise<string> =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || ""));
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-
 export async function uploadMediaFile(file: File, scope = "uploads"): Promise<string> {
   const baseUrl = getBaseUrl();
-  if (!baseUrl) return await toDataUrl(file);
+  if (!baseUrl) {
+    throw new Error("Missing sync API base URL. Configure VITE_SYNC_API_BASE_URL for global media uploads.");
+  }
 
   try {
     const response = await fetch(`${baseUrl}/media/upload`, {
@@ -34,8 +28,7 @@ export async function uploadMediaFile(file: File, scope = "uploads"): Promise<st
     if (url.startsWith("http")) return url;
     return `${baseUrl}${url}`;
   } catch (error) {
-    // In synced deployments, failing over to local data URLs causes
-    // non-global state and oversized sync payloads. Hard-fail instead.
+    // Hard-fail so admin never saves device-local-only media URLs.
     throw error instanceof Error ? error : new Error("Upload failed");
   }
 }

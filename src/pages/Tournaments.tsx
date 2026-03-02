@@ -85,7 +85,7 @@ const Tournaments = () => {
           </div>
         </div>
 
-        <div className="space-y-4 max-w-5xl mx-auto">
+        <div className="space-y-4 max-w-4xl mx-auto">
           {filtered.map((t, index) => {
             const entryAmount = Number(t.entry_fee_amount ?? t.entry_fee ?? 0);
             const entryCurrency = t.entry_fee_currency || "RWF";
