@@ -6,11 +6,20 @@ const StandingsTab = ({ players = [], teams = [] }) => {
         <p className="text-xs uppercase tracking-widest text-white/40 mb-2">Top Players</p>
         <div className="space-y-2">
           {players.map((entry) => (
-            <div key={`${entry.rank}_${entry.email || entry.name}`} className="grid grid-cols-5 text-sm text-white/90">
+            <div key={`${entry.rank}_${entry.email || entry.name}`} className="grid grid-cols-6 text-sm text-white/90 items-center">
               <span>#{entry.rank}</span>
-              <span className="col-span-2">{entry.name}</span>
+              <span className="inline-flex items-center gap-2 col-span-2">
+                {entry.avatar_url ? (
+                  <img src={entry.avatar_url} alt={entry.name} className="w-6 h-6 rounded-full object-cover border border-white/20" />
+                ) : (
+                  <span className="w-6 h-6 rounded-full bg-white/10 inline-flex items-center justify-center text-[10px]">
+                    {(entry.name || "U")[0]}
+                  </span>
+                )}
+                {entry.name}
+              </span>
               <span>{entry.mmr}</span>
-              <span>{entry.badge || "ADVANCING"}</span>
+              <span className="col-span-2">{entry.badge || "ADVANCING"}</span>
             </div>
           ))}
           {players.length === 0 && <div className="text-white/50 text-sm">No player standings set.</div>}
@@ -35,4 +44,3 @@ const StandingsTab = ({ players = [], teams = [] }) => {
 };
 
 export default StandingsTab;
-

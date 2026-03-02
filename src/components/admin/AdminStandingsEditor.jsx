@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
-import { getSoloProfiles, getTeams, getTournaments, saveTournaments } from "@/lib/storage";
-import { users } from "@/lib/mock-data";
+import { getAccounts, getSoloProfiles, getTeams, getTournaments, saveTournaments } from "@/lib/storage";
 import { toast } from "sonner";
 
-const defaultPlayer = { rank: 1, name: "", email: "", mmr: 1000, badge: "ADVANCING" };
+const defaultPlayer = { rank: 1, name: "", email: "", mmr: 1000, badge: "ADVANCING", avatar_url: "" };
 const defaultTeam = { rank: 1, name: "", wins: 0, losses: 0 };
 
 const AdminStandingsEditor = ({ tournamentId, onDone }) => {
@@ -41,27 +40,32 @@ const AdminStandingsEditor = ({ tournamentId, onDone }) => {
     .filter((team) => !tournament?.game_id || team.game_id === tournament.game_id)
     .sort((a, b) => (b.rating || b.wins || 0) - (a.rating || a.wins || 0));
 
-  const soloPool = getSoloProfiles()
+  const soloPoolRaw = getSoloProfiles()
     .filter((profile) => !tournament?.game_id || profile.game_id === tournament.game_id)
-    .sort((a, b) => (b.rating || 0) - (a.rating || 0));
+    .sort((a, b) => (b.rating || 0) - (a.rating || 0))
+    .reduce((acc, profile) => {
+      const key = (profile.user_email || "").toLowerCase();
+      if (!key) return acc;
+      if (!acc[key] || (profile.rating || 0) > (acc[key].rating || 0)) {
+        acc[key] = profile;
+      }
+      return acc;
+    }, {});
 
-  const playerPool = [
-    ...soloPool.map((item) => ({
-      id: `solo_${item.id}`,
-      name: item.in_game_name || item.user_name,
-      email: item.user_email || "",
-      mmr: item.rating || 1000,
-    })),
-    ...users
-      .filter((user) => !tournament?.game_id || user.game_id === tournament.game_id)
-      .sort((a, b) => (b.rating || 0) - (a.rating || 0))
-      .map((user) => ({
-        id: `user_${user.id}`,
-        name: user.name,
-        email: user.email || "",
-        mmr: user.rating || 1000,
-      })),
-  ];
+  const accountsPool = getAccounts()
+    .filter((account) => account.email_verified)
+    .sort((a, b) => (a.full_name || "").localeCompare(b.full_name || ""));
+
+  const playerPool = accountsPool.map((account) => {
+    const solo = soloPoolRaw[account.email.toLowerCase()];
+    return {
+      id: `account_${account.id}`,
+      name: account.handle ? `${account.full_name} (@${account.handle})` : account.full_name,
+      email: account.email,
+      mmr: solo?.rating || 1000,
+      avatar_url: account.avatar_url || solo?.avatar_url || "",
+    };
+  });
 
   const addSuggestedPlayer = () => {
     const selected = playerPool.find((item) => item.id === playerSuggestion);
@@ -69,7 +73,7 @@ const AdminStandingsEditor = ({ tournamentId, onDone }) => {
       toast.error("Select a suggested player first");
       return;
     }
-    if (players.some((item) => item.name.toLowerCase() === selected.name.toLowerCase())) {
+    if (players.some((item) => (item.email || "").toLowerCase() === selected.email.toLowerCase())) {
       toast.error("Player already in standings");
       return;
     }
@@ -81,6 +85,7 @@ const AdminStandingsEditor = ({ tournamentId, onDone }) => {
         email: selected.email,
         mmr: selected.mmr,
         badge: "ADVANCING",
+        avatar_url: selected.avatar_url,
       },
     ]);
     setPlayerSuggestion("");
@@ -108,6 +113,22 @@ const AdminStandingsEditor = ({ tournamentId, onDone }) => {
     setTeamSuggestion("");
   };
 
+  const removePlayer = (idx) => {
+    setPlayers((prev) =>
+      prev
+        .filter((_, i) => i !== idx)
+        .map((entry, i) => ({ ...entry, rank: i + 1 }))
+    );
+  };
+
+  const removeTeam = (idx) => {
+    setTeams((prev) =>
+      prev
+        .filter((_, i) => i !== idx)
+        .map((entry, i) => ({ ...entry, rank: i + 1 }))
+    );
+  };
+
   return (
     <div className="rounded-xl border border-cyan-500/20 bg-[#0a0a12] p-4 space-y-3">
       <p className="font-mono text-xs text-cyan-300 uppercase">Update Standings</p>
@@ -131,11 +152,27 @@ const AdminStandingsEditor = ({ tournamentId, onDone }) => {
           </button>
         </div>
         {players.map((player, idx) => (
-          <div key={idx} className="grid grid-cols-5 gap-2">
-            <input value={player.rank} onChange={(e) => setPlayers((prev) => prev.map((p, i) => (i === idx ? { ...p, rank: Number(e.target.value) } : p)))} className="h-9 rounded bg-white/5 border border-white/10 text-white px-2 text-xs font-mono" />
-            <input value={player.name} onChange={(e) => setPlayers((prev) => prev.map((p, i) => (i === idx ? { ...p, name: e.target.value } : p)))} placeholder="name" className="col-span-2 h-9 rounded bg-white/5 border border-white/10 text-white px-2 text-xs font-mono" />
-            <input value={player.mmr} onChange={(e) => setPlayers((prev) => prev.map((p, i) => (i === idx ? { ...p, mmr: Number(e.target.value) } : p)))} className="h-9 rounded bg-white/5 border border-white/10 text-white px-2 text-xs font-mono" />
-            <input value={player.badge} onChange={(e) => setPlayers((prev) => prev.map((p, i) => (i === idx ? { ...p, badge: e.target.value } : p)))} className="h-9 rounded bg-white/5 border border-white/10 text-white px-2 text-xs font-mono" />
+          <div key={idx} className="grid grid-cols-12 gap-2 items-center">
+            <div className="col-span-1 text-xs text-white/70 font-mono">#{player.rank}</div>
+            <div className="col-span-1">
+              {player.avatar_url ? (
+                <img src={player.avatar_url} alt={player.name} className="w-8 h-8 rounded-full object-cover border border-white/20" />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-[10px]">
+                  {(player.name || "U")[0]}
+                </div>
+              )}
+            </div>
+            <input value={player.name} onChange={(e) => setPlayers((prev) => prev.map((p, i) => (i === idx ? { ...p, name: e.target.value } : p)))} placeholder="name" className="col-span-4 h-9 rounded bg-white/5 border border-white/10 text-white px-2 text-xs font-mono" />
+            <input value={player.mmr} onChange={(e) => setPlayers((prev) => prev.map((p, i) => (i === idx ? { ...p, mmr: Number(e.target.value) } : p)))} className="col-span-2 h-9 rounded bg-white/5 border border-white/10 text-white px-2 text-xs font-mono" />
+            <input value={player.badge} onChange={(e) => setPlayers((prev) => prev.map((p, i) => (i === idx ? { ...p, badge: e.target.value } : p)))} className="col-span-3 h-9 rounded bg-white/5 border border-white/10 text-white px-2 text-xs font-mono" />
+            <button
+              onClick={() => removePlayer(idx)}
+              className="col-span-1 h-9 rounded bg-rose-600/20 border border-rose-500/30 text-rose-300 text-xs font-mono"
+              type="button"
+            >
+              DEL
+            </button>
           </div>
         ))}
         <button onClick={() => setPlayers((prev) => [...prev, { ...defaultPlayer, rank: prev.length + 1 }])} className="h-8 px-3 rounded bg-white/10 text-white text-xs font-mono">+ Add Player</button>
@@ -164,7 +201,16 @@ const AdminStandingsEditor = ({ tournamentId, onDone }) => {
             <input value={team.rank} onChange={(e) => setTeams((prev) => prev.map((t, i) => (i === idx ? { ...t, rank: Number(e.target.value) } : t)))} className="h-9 rounded bg-white/5 border border-white/10 text-white px-2 text-xs font-mono" />
             <input value={team.name} onChange={(e) => setTeams((prev) => prev.map((t, i) => (i === idx ? { ...t, name: e.target.value } : t)))} placeholder="team" className="h-9 rounded bg-white/5 border border-white/10 text-white px-2 text-xs font-mono" />
             <input value={team.wins} onChange={(e) => setTeams((prev) => prev.map((t, i) => (i === idx ? { ...t, wins: Number(e.target.value) } : t)))} className="h-9 rounded bg-white/5 border border-white/10 text-white px-2 text-xs font-mono" />
-            <input value={team.losses} onChange={(e) => setTeams((prev) => prev.map((t, i) => (i === idx ? { ...t, losses: Number(e.target.value) } : t)))} className="h-9 rounded bg-white/5 border border-white/10 text-white px-2 text-xs font-mono" />
+            <div className="flex gap-2">
+              <input value={team.losses} onChange={(e) => setTeams((prev) => prev.map((t, i) => (i === idx ? { ...t, losses: Number(e.target.value) } : t)))} className="h-9 rounded bg-white/5 border border-white/10 text-white px-2 text-xs font-mono w-full" />
+              <button
+                onClick={() => removeTeam(idx)}
+                className="h-9 px-2 rounded bg-rose-600/20 border border-rose-500/30 text-rose-300 text-xs font-mono"
+                type="button"
+              >
+                DEL
+              </button>
+            </div>
           </div>
         ))}
         <button onClick={() => setTeams((prev) => [...prev, { ...defaultTeam, rank: prev.length + 1 }])} className="h-8 px-3 rounded bg-white/10 text-white text-xs font-mono">+ Add Team</button>

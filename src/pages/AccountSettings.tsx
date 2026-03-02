@@ -1,20 +1,29 @@
-import { ChangeEvent, useMemo, useState } from "react";
+import { ChangeEvent, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { uploadMediaFile } from "@/lib/media-upload";
-import { getCurrentUser, updateAccountProfile } from "@/lib/storage";
+import { getAccountByEmail, getCurrentUser, updateAccountProfile } from "@/lib/storage";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { useRealtimeRefresh } from "@/components/hooks/useRealtimeRefresh";
 
 const AccountSettings = () => {
+  useRealtimeRefresh({ keys: ["arenax_user_accounts", "arenax_current_user"], intervalMs: 1000 });
   const navigate = useNavigate();
-  const currentUser = useMemo(() => getCurrentUser(), []);
+  const currentUser = getCurrentUser();
+  const account = getAccountByEmail(currentUser.email);
 
-  const [fullName, setFullName] = useState(currentUser.name || "");
-  const [handle, setHandle] = useState(currentUser.handle || "");
-  const [avatarUrl, setAvatarUrl] = useState(currentUser.avatar_url || "");
+  const [fullName, setFullName] = useState(account?.full_name || currentUser.name || "");
+  const [handle, setHandle] = useState(account?.handle || currentUser.handle || "");
+  const [avatarUrl, setAvatarUrl] = useState(account?.avatar_url || currentUser.avatar_url || "");
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setFullName(account?.full_name || currentUser.name || "");
+    setHandle(account?.handle || currentUser.handle || "");
+    setAvatarUrl(account?.avatar_url || currentUser.avatar_url || "");
+  }, [account?.full_name, account?.handle, account?.avatar_url, currentUser.name, currentUser.handle, currentUser.avatar_url]);
 
   if (currentUser.is_guest) {
     return (

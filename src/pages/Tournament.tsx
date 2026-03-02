@@ -456,9 +456,16 @@ const Tournament = () => {
                       <div className="space-y-2">
                         {standingsPlayers.length > 0 ? (
                           standingsPlayers.slice(0, 3).map((item: any) => (
-                            <p key={`${item.rank}-${item.name}`} className="text-sm text-white">
-                              #{item.rank} {item.name} - {item.mmr} MMR
-                            </p>
+                            <div key={`${item.rank}-${item.name}`} className="text-sm text-white inline-flex items-center gap-2">
+                              {item.avatar_url ? (
+                                <img src={item.avatar_url} alt={item.name} className="w-5 h-5 rounded-full object-cover border border-white/20" />
+                              ) : (
+                                <span className="w-5 h-5 rounded-full bg-white/10 inline-flex items-center justify-center text-[10px]">
+                                  {(item.name || "U")[0]}
+                                </span>
+                              )}
+                              <span>#{item.rank} {item.name} - {item.mmr} MMR</span>
+                            </div>
                           ))
                         ) : (
                           <p className="text-sm text-muted-foreground">No player standings yet.</p>

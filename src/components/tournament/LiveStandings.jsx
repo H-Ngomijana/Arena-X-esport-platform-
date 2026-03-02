@@ -6,8 +6,15 @@ const LiveStandings = ({ topPlayers = [], topTeams = [] }) => {
         <div className="space-y-2">
           {topPlayers.map((player, index) => (
             <div key={player.id || `${player.name}_${index}`} className="flex items-center justify-between text-sm">
-              <span>
-                #{index + 1} {index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : ""} {player.name}
+              <span className="inline-flex items-center gap-2">
+                {player.avatar_url ? (
+                  <img src={player.avatar_url} alt={player.name} className="w-6 h-6 rounded-full object-cover border border-white/20" />
+                ) : (
+                  <span className="w-6 h-6 rounded-full bg-white/10 inline-flex items-center justify-center text-[10px]">
+                    {(player.name || "U")[0]}
+                  </span>
+                )}
+                #{index + 1} {player.name}
               </span>
               <span className="text-white/60">{player.rating} MMR</span>
             </div>

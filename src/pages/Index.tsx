@@ -34,6 +34,7 @@ const Index = () => {
   const joinRequests = getJoinRequests();
   const [heroVideoUrl, setHeroVideoUrl] = useState<string>("");
   const hasHeroVideoRef = useRef(false);
+  const [heroRetryToken, setHeroRetryToken] = useState(0);
   const resolvedHeroVideo = heroVideoUrl;
 
   const parseAmount = (value: unknown): number => {
@@ -82,7 +83,7 @@ const Index = () => {
 
         if (meta?.source === "remote") {
           // Use direct stream URL for immediate playback without waiting full blob download.
-          const streamUrl = getHomeHeroVideoStreamUrl(meta.updated_at);
+          const streamUrl = getHomeHeroVideoStreamUrl(`${meta.updated_at}-${Date.now()}`);
           if (streamUrl) {
             hasHeroVideoRef.current = true;
             setHeroVideoUrl(streamUrl);
@@ -105,12 +106,13 @@ const Index = () => {
           }
         }
 
-        hasHeroVideoRef.current = false;
-        if (currentUrl && currentUrl.startsWith("blob:")) {
-          URL.revokeObjectURL(currentUrl);
-          currentUrl = "";
+        if (!hasHeroVideoRef.current) {
+          if (currentUrl && currentUrl.startsWith("blob:")) {
+            URL.revokeObjectURL(currentUrl);
+            currentUrl = "";
+          }
+          setHeroVideoUrl("");
         }
-        setHeroVideoUrl("");
       } catch {
         if (!hasHeroVideoRef.current) {
           setHeroVideoUrl("");
@@ -135,7 +137,7 @@ const Index = () => {
       window.removeEventListener("arenax:data-changed", onDataChanged as EventListener);
       if (currentUrl && currentUrl.startsWith("blob:")) URL.revokeObjectURL(currentUrl);
     };
-  }, []);
+  }, [heroRetryToken]);
 
   return (
   <div>
@@ -153,13 +155,8 @@ const Index = () => {
             preload="auto"
             playsInline
             onError={() => {
-              if (heroVideoUrl) {
-                setHeroVideoUrl("");
-                hasHeroVideoRef.current = false;
-                return;
-              }
-              setHeroVideoUrl("");
-              hasHeroVideoRef.current = false;
+              // Keep current hero state and trigger a retry with a fresh URL token.
+              setTimeout(() => setHeroRetryToken((n) => n + 1), 1200);
             }}
           />
         ) : (

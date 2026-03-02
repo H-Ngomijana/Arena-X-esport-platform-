@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { addUserNotification, getMatches, getTournaments, saveTournaments, updateMatch } from "@/lib/storage";
+import { addUserNotification, getAccountByEmail, getMatches, getTournaments, saveTournaments, updateMatch } from "@/lib/storage";
 import { toast } from "sonner";
 
 const AdminDeclareResult = ({ tournamentId, adminEmail = "admin@arenax.gg", onDone }) => {
@@ -49,7 +49,15 @@ const AdminDeclareResult = ({ tournamentId, adminEmail = "admin@arenax.gg", onDo
       if (winnerPlayerIdx >= 0) {
         currentPlayers[winnerPlayerIdx] = { ...currentPlayers[winnerPlayerIdx], mmr: (currentPlayers[winnerPlayerIdx].mmr || 0) + 25, badge: "ADVANCING" };
       } else if (winner?.email) {
-        currentPlayers.push({ rank: currentPlayers.length + 1, name: winner.name, email: winner.email, mmr: 1200, badge: "ADVANCING" });
+        const winnerAccount = getAccountByEmail(winner.email);
+        currentPlayers.push({
+          rank: currentPlayers.length + 1,
+          name: winner.name,
+          email: winner.email,
+          mmr: 1200,
+          badge: "ADVANCING",
+          avatar_url: winnerAccount?.avatar_url || "",
+        });
       }
 
       const winnerTeamIdx = currentTeams.findIndex((t) => t.name === winner?.name);
