@@ -565,22 +565,39 @@ export function addUserNotification(payload: Omit<UserNotification, "id" | "crea
 
 export function markNotificationAsRead(id: string) {
   const all = getNotifications();
-  safeWrite(
-    KEYS.notifications,
-    all.map((item) => (item.id === id ? { ...item, read: true } : item))
-  );
+  safeWrite(KEYS.notifications, all.filter((item) => item.id !== id));
 }
 
 export function markAllNotificationsAsRead(userEmail: string) {
   const all = getNotifications();
-  safeWrite(
-    KEYS.notifications,
-    all.map((item) => (item.user_email === userEmail ? { ...item, read: true } : item))
-  );
+  safeWrite(KEYS.notifications, all.filter((item) => item.user_email !== userEmail));
 }
 
 export function getUnreadNotificationCount(userEmail: string) {
   return getUserNotifications(userEmail).filter((item) => !item.read).length;
+}
+
+export function getUnreadMessageNotificationCount(userEmail: string) {
+  const normalized = userEmail.trim().toLowerCase();
+  return getNotifications().filter((item) => {
+    if (item.user_email.toLowerCase() !== normalized) return false;
+    if (item.read) return false;
+    return (item.link || "").startsWith("/messages?with=");
+  }).length;
+}
+
+export function clearMessageNotificationsForConversation(userEmail: string, otherEmail: string) {
+  const normalizedUser = userEmail.trim().toLowerCase();
+  const normalizedOther = otherEmail.trim().toLowerCase();
+  const targetLink = `/messages?with=${encodeURIComponent(normalizedOther)}`;
+  const all = getNotifications();
+  safeWrite(
+    KEYS.notifications,
+    all.filter((item) => {
+      if (item.user_email.toLowerCase() !== normalizedUser) return true;
+      return (item.link || "") !== targetLink;
+    })
+  );
 }
 
 export function getUserTeam(userEmail: string) {

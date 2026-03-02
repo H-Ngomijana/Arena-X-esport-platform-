@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Menu, X, Bell, ChevronDown, Settings } from "lucide-react";
+import { Menu, X, Bell, ChevronDown, Settings, MessageCircle } from "lucide-react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import BrandLogo from "@/components/BrandLogo";
 import { toast } from "sonner";
-import { getCurrentUser, getMyJoinRequests, getUnreadNotificationCount, signOutUser } from "@/lib/storage";
+import { getCurrentUser, getMyJoinRequests, getUnreadMessageNotificationCount, getUnreadNotificationCount, signOutUser } from "@/lib/storage";
 import { useRealtimeRefresh } from "@/components/hooks/useRealtimeRefresh";
 import {
   DropdownMenu,
@@ -61,6 +61,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   });
   const [mobileOpen, setMobileOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [redirectCountdown, setRedirectCountdown] = useState(0);
   const [redirectTarget, setRedirectTarget] = useState("");
   const location = useLocation();
@@ -71,11 +72,15 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     if (currentUser.is_guest) {
       setUnreadCount(0);
+      setUnreadMessageCount(0);
       return;
     }
-    const refresh = () => setUnreadCount(getUnreadNotificationCount(currentUser.email));
+    const refresh = () => {
+      setUnreadCount(getUnreadNotificationCount(currentUser.email));
+      setUnreadMessageCount(getUnreadMessageNotificationCount(currentUser.email));
+    };
     refresh();
-    const timer = setInterval(refresh, 2000);
+    const timer = setInterval(refresh, 800);
     return () => clearInterval(timer);
   }, [currentUser.email, currentUser.is_guest]);
 
@@ -164,6 +169,17 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
           </nav>
 
           <div className="flex items-center gap-3">
+            <Link
+              to="/messages"
+              className="relative p-2 rounded-lg hover:bg-white/5 transition-colors text-muted-foreground hover:text-foreground"
+            >
+              <MessageCircle size={18} />
+              {unreadMessageCount > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-4 h-4 rounded-full bg-rose-500 text-white text-[10px] px-1 flex items-center justify-center">
+                  {unreadMessageCount > 9 ? "9+" : unreadMessageCount}
+                </span>
+              )}
+            </Link>
             <Link
               to="/notifications"
               className="relative p-2 rounded-lg hover:bg-white/5 transition-colors text-muted-foreground hover:text-foreground"

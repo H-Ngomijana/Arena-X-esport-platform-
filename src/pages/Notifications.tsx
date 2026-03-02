@@ -21,27 +21,6 @@ interface Notification {
   link: string;
 }
 
-const defaultNotifications: Notification[] = [
-  {
-    id: "1",
-    type: "tournament",
-    title: "Tournament Registration Open",
-    message: "Regional Championship Season 4 is now open for registration",
-    timestamp: "2 hours ago",
-    is_read: false,
-    link: "/tournaments",
-  },
-  {
-    id: "2",
-    type: "match",
-    title: "Match Starting Soon",
-    message: "Your team has a match against TeamX in 30 minutes",
-    timestamp: "1 hour ago",
-    is_read: false,
-    link: "/match-room?id=match123",
-  },
-];
-
 const formatTimeAgo = (iso: string) => {
   const deltaMs = Date.now() - new Date(iso).getTime();
   const minutes = Math.max(1, Math.floor(deltaMs / 60000));
@@ -85,7 +64,6 @@ const Notifications = () => {
   const [notifications, setNotifications] = useState<Notification[]>([
     ...dynamicUserNotifications,
     ...announcementNotifications,
-    ...defaultNotifications,
   ]);
 
   const getIcon = (type: Notification["type"]) => {
@@ -108,12 +86,12 @@ const Notifications = () => {
 
   const markAsRead = (id: string) => {
     markNotificationAsRead(id);
-    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)));
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
   };
 
   const markAllAsRead = () => {
     markAllNotificationsAsRead(currentUser.email);
-    setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+    setNotifications((prev) => prev.filter((n) => n.type === "announcement"));
   };
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;

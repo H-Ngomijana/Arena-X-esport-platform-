@@ -1,9 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { getConversation, getCurrentUser, searchAccounts, sendDirectMessage } from "@/lib/storage";
+import { clearMessageNotificationsForConversation, getConversation, getCurrentUser, searchAccounts, sendDirectMessage } from "@/lib/storage";
 import { useRealtimeRefresh } from "@/components/hooks/useRealtimeRefresh";
 import { toast } from "sonner";
 
@@ -18,6 +18,11 @@ const Messages = () => {
   const users = useMemo(() => searchAccounts(search, currentUser.email), [search, currentUser.email]);
   const selectedUser = users.find((u) => u.email === selectedEmail) || searchAccounts("", currentUser.email).find((u) => u.email === selectedEmail);
   const conversation = selectedEmail ? getConversation(currentUser.email, selectedEmail) : [];
+
+  useEffect(() => {
+    if (!selectedEmail || currentUser.is_guest) return;
+    clearMessageNotificationsForConversation(currentUser.email, selectedEmail);
+  }, [selectedEmail, currentUser.email, currentUser.is_guest]);
 
   if (currentUser.is_guest) {
     return (
