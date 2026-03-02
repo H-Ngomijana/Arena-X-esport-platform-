@@ -13,7 +13,6 @@ import { getMediaFeed, getMatches, getSoloProfiles, getTeams, getTournaments, ge
 import { getHomeHeroVideoBlob, getHomeHeroVideoMeta, getHomeHeroVideoStreamUrl } from "@/lib/hero-video";
 import { useRealtimeRefresh } from "@/components/hooks/useRealtimeRefresh";
 
-const DEFAULT_HERO_VIDEO = "/home-hero-default.mp4";
 const HOME_STAGE_VISUAL = "/home-stage-visual.jpeg";
 
 const Index = () => {
@@ -34,9 +33,8 @@ const Index = () => {
   const soloProfiles = getSoloProfiles();
   const joinRequests = getJoinRequests();
   const [heroVideoUrl, setHeroVideoUrl] = useState<string>("");
-  const [defaultVideoFailed, setDefaultVideoFailed] = useState(false);
   const hasHeroVideoRef = useRef(false);
-  const resolvedHeroVideo = heroVideoUrl || (!defaultVideoFailed ? DEFAULT_HERO_VIDEO : "");
+  const resolvedHeroVideo = heroVideoUrl;
 
   const parseAmount = (value: unknown): number => {
     if (typeof value === "number") return Number.isFinite(value) ? value : 0;
@@ -92,17 +90,19 @@ const Index = () => {
           }
         }
 
-        const blob = await getHomeHeroVideoBlob();
-        if (!active) return;
-        if (blob) {
-          const nextUrl = URL.createObjectURL(blob);
-          if (currentUrl && currentUrl.startsWith("blob:") && currentUrl !== nextUrl) {
-            URL.revokeObjectURL(currentUrl);
+        if (meta?.source === "local") {
+          const blob = await getHomeHeroVideoBlob();
+          if (!active) return;
+          if (blob) {
+            const nextUrl = URL.createObjectURL(blob);
+            if (currentUrl && currentUrl.startsWith("blob:") && currentUrl !== nextUrl) {
+              URL.revokeObjectURL(currentUrl);
+            }
+            currentUrl = nextUrl;
+            hasHeroVideoRef.current = true;
+            setHeroVideoUrl(nextUrl);
+            return;
           }
-          currentUrl = nextUrl;
-          hasHeroVideoRef.current = true;
-          setHeroVideoUrl(nextUrl);
-          return;
         }
 
         hasHeroVideoRef.current = false;
@@ -158,7 +158,8 @@ const Index = () => {
                 hasHeroVideoRef.current = false;
                 return;
               }
-              setDefaultVideoFailed(true);
+              setHeroVideoUrl("");
+              hasHeroVideoRef.current = false;
             }}
           />
         ) : (

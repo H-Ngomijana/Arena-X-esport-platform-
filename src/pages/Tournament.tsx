@@ -134,7 +134,7 @@ const Tournament = () => {
   const countdownHours = Math.floor((countdownDiff / (1000 * 60 * 60)) % 24);
   const countdownMinutes = Math.floor((countdownDiff / (1000 * 60)) % 60);
   const countdownSeconds = Math.floor((countdownDiff / 1000) % 60);
-  const allowsSolo = (game?.game_modes || []).includes("solo");
+  const allowsSolo = true;
   const allowsTeam = (game?.game_modes || []).includes("team");
 
   const handleShare = () => {
