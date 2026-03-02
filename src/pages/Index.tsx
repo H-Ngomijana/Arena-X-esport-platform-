@@ -10,7 +10,7 @@ import { useGames } from "@/context/GamesContext";
 import heroBanner from "@/assets/hero-banner.jpg";
 import HowItWorks from "@/components/HowItWorks";
 import { getMediaFeed, getMatches, getSoloProfiles, getTeams, getTournaments, getJoinRequests } from "@/lib/storage";
-import { getHomeHeroVideoBlob, getHomeHeroVideoMeta } from "@/lib/hero-video";
+import { getHomeHeroVideoBlob, getHomeHeroVideoMeta, getHomeHeroVideoStreamUrl } from "@/lib/hero-video";
 import { useRealtimeRefresh } from "@/components/hooks/useRealtimeRefresh";
 
 const DEFAULT_HERO_VIDEO = "/home-hero-default.mp4";
@@ -79,33 +79,38 @@ const Index = () => {
 
     const loadHeroVideo = async () => {
       try {
+        const meta = await getHomeHeroVideoMeta();
+        if (!active) return;
+
+        if (meta?.source === "remote") {
+          // Use direct stream URL for immediate playback without waiting full blob download.
+          const streamUrl = getHomeHeroVideoStreamUrl(meta.updated_at);
+          if (streamUrl) {
+            hasHeroVideoRef.current = true;
+            setHeroVideoUrl(streamUrl);
+            return;
+          }
+        }
+
         const blob = await getHomeHeroVideoBlob();
         if (!active) return;
         if (blob) {
           const nextUrl = URL.createObjectURL(blob);
-          if (currentUrl && currentUrl !== nextUrl) {
+          if (currentUrl && currentUrl.startsWith("blob:") && currentUrl !== nextUrl) {
             URL.revokeObjectURL(currentUrl);
           }
           currentUrl = nextUrl;
           hasHeroVideoRef.current = true;
           setHeroVideoUrl(nextUrl);
-        } else {
-          const meta = await getHomeHeroVideoMeta();
-          if (!meta) {
-            hasHeroVideoRef.current = false;
-            if (currentUrl) {
-              URL.revokeObjectURL(currentUrl);
-              currentUrl = "";
-            }
-            setHeroVideoUrl("");
-            return;
-          }
-          if (!hasHeroVideoRef.current) {
-            // Keep image fallback on first load if no blob is available yet.
-            // Do not clear an already-playing video on temporary fetch errors.
-            setHeroVideoUrl("");
-          }
+          return;
         }
+
+        hasHeroVideoRef.current = false;
+        if (currentUrl && currentUrl.startsWith("blob:")) {
+          URL.revokeObjectURL(currentUrl);
+          currentUrl = "";
+        }
+        setHeroVideoUrl("");
       } catch {
         if (!hasHeroVideoRef.current) {
           setHeroVideoUrl("");
@@ -128,7 +133,7 @@ const Index = () => {
       window.clearInterval(poll);
       window.removeEventListener("arenax:hero-video-updated", onHeroUpdate as EventListener);
       window.removeEventListener("arenax:data-changed", onDataChanged as EventListener);
-      if (currentUrl) URL.revokeObjectURL(currentUrl);
+      if (currentUrl && currentUrl.startsWith("blob:")) URL.revokeObjectURL(currentUrl);
     };
   }, []);
 

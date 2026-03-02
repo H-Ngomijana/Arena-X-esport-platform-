@@ -17,6 +17,13 @@ const getSyncBaseUrl = () => {
   return "";
 };
 
+export function getHomeHeroVideoStreamUrl(cacheKey?: string): string {
+  const baseUrl = getSyncBaseUrl();
+  if (!baseUrl) return "";
+  const stamp = cacheKey ? encodeURIComponent(cacheKey) : Date.now().toString();
+  return `${baseUrl}/media/home-hero?v=${stamp}`;
+}
+
 function emitUpdate() {
   window.dispatchEvent(new CustomEvent("arenax:hero-video-updated", { detail: { at: new Date().toISOString() } }));
 }
