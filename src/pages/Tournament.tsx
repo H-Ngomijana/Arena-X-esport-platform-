@@ -4,9 +4,8 @@ import { Share2, Calendar, Users, Trophy, Shield, CheckCheck } from "lucide-reac
 import GlowButton from "@/components/GlowButton";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getTournaments, getTeams, getSoloProfiles, getCurrentUser, createJoinRequest, getPageBackgrounds, getMatches, getMyTournamentJoinRequest } from "@/lib/storage";
+import { getTournaments, getTeams, getCurrentUser, createJoinRequest, getPageBackgrounds, getMatches, getMyTournamentJoinRequest } from "@/lib/storage";
 import TeamCard from "@/components/TeamCard";
-import CreateSoloProfileDialog from "@/components/tournament/CreateSoloProfileDialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useTheme } from "@/context/ThemeContext";
 import { toast } from "sonner";
@@ -15,14 +14,12 @@ import { useRealtimeRefresh } from "@/components/hooks/useRealtimeRefresh";
 
 const Tournament = () => {
   useRealtimeRefresh({
-    keys: ["tournaments", "matches", "join_requests", "teams", "solo_profiles"],
+    keys: ["tournaments", "matches", "join_requests", "teams", "arenax_user_accounts"],
     intervalMs: 5000,
   });
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
-  const [showSoloDialog, setShowSoloDialog] = useState(false);
-  const [reloadKey, setReloadKey] = useState(0);
   const [profileType, setProfileType] = useState<"solo" | "team">("team");
   const [selectedProfileId, setSelectedProfileId] = useState("");
   const [refreshTick, setRefreshTick] = useState(0);
@@ -37,7 +34,6 @@ const Tournament = () => {
   const tournamentMatches = getMatches().filter((m) => m.tournament_id === id);
   const currentUser = getCurrentUser();
   const allTeams = getTeams();
-  const allSoloProfiles = getSoloProfiles();
   const tournamentPageBg = getPageBackgrounds().tournament_page_default;
   const standingsPlayers = tournamentData?.top_players_override || [];
   const standingsTeams = tournamentData?.top_teams_override || [];
@@ -66,14 +62,20 @@ const Tournament = () => {
         (team.captain_id === currentUser.id || members.includes(currentUser.email) || members.includes(currentUser.id))
       );
     });
-  }, [allTeams, currentUser.email, currentUser.id, tournamentData?.game_id, reloadKey]);
+  }, [allTeams, currentUser.email, currentUser.id, tournamentData?.game_id]);
 
   const mySoloProfiles = useMemo(
     () =>
-      allSoloProfiles.filter(
-        (profile) => profile.game_id === tournamentData?.game_id && profile.user_email === currentUser.email
-      ),
-    [allSoloProfiles, currentUser.email, tournamentData?.game_id, reloadKey]
+      currentUser.is_guest
+        ? []
+        : [
+            {
+              id: `account-${currentUser.id}`,
+              in_game_name: currentUser.handle || currentUser.name,
+              user_email: currentUser.email,
+            },
+          ],
+    [currentUser]
   );
   const myRequest = useMemo(() => {
     if (!id || !currentUser.email) return undefined;
@@ -125,7 +127,7 @@ const Tournament = () => {
   }
 
   const registeredTeamsCount = tournamentData.registered_teams?.length || 0;
-  const hasAnyProfile = myTeams.length > 0 || mySoloProfiles.length > 0;
+  const hasAnyProfile = !currentUser.is_guest;
   const entryAmount = Number(tournamentData.entry_fee_amount ?? tournamentData.entry_fee ?? 0);
   const entryCurrency = tournamentData.entry_fee_currency || "RWF";
   const countdownTarget = tournamentData.match_start_time ? new Date(tournamentData.match_start_time).getTime() : 0;
@@ -517,15 +519,10 @@ const Tournament = () => {
                 </div>
               ) : !hasAnyProfile ? (
                 <div className="space-y-3">
-                  <p className="text-sm text-muted-foreground">Create a team or solo profile before joining.</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    <GlowButton className="w-full" onClick={() => navigate(`/create-team?game=${game?.slug || ""}`)}>
-                      Create Team
-                    </GlowButton>
-                    <GlowButton variant="secondary" className="w-full" onClick={() => setShowSoloDialog(true)}>
-                      Create Solo Profile
-                    </GlowButton>
-                  </div>
+                  <p className="text-sm text-muted-foreground">Sign in to join. Team creation is optional for SOLO.</p>
+                  <GlowButton className="w-full" onClick={() => navigate(`/create-team?game=${game?.slug || ""}`)}>
+                    Create Team (Optional)
+                  </GlowButton>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -535,10 +532,6 @@ const Tournament = () => {
                       onClick={() => {
                         if (!allowsSolo) {
                           toast.error("Solo participation is disabled for this game.");
-                          return;
-                        }
-                        if (!mySoloProfiles.length) {
-                          toast.error("No solo profile found for this game.");
                           return;
                         }
                         setProfileType("solo");
@@ -574,7 +567,7 @@ const Tournament = () => {
                         <SelectValue placeholder="Select solo profile" />
                       </SelectTrigger>
                       <SelectContent>
-                        {mySoloProfiles.map((profile) => (
+                        {mySoloProfiles.map((profile: any) => (
                           <SelectItem key={profile.id} value={profile.id}>
                             {profile.in_game_name}
                           </SelectItem>
@@ -595,11 +588,8 @@ const Tournament = () => {
                       </SelectContent>
                     </Select>
                   )}
-                  {profileType === "solo" && mySoloProfiles.length === 0 ? (
-                    <p className="text-xs text-amber-300">No solo profile available for this game. Create one first.</p>
-                  ) : null}
                   {profileType === "team" && myTeams.length === 0 ? (
-                    <p className="text-xs text-amber-300">No team available for this game. Create one first.</p>
+                    <p className="text-xs text-amber-300">No team available. Switch to SOLO or create team.</p>
                   ) : null}
                   <GlowButton className="w-full" disabled={!selectedProfileId} onClick={joinTournament}>
                     {entryAmount > 0
@@ -622,13 +612,6 @@ const Tournament = () => {
           </div>
         </div>
       </section>
-
-      <CreateSoloProfileDialog
-        open={showSoloDialog}
-        onOpenChange={setShowSoloDialog}
-        gameId={tournamentData.game_id}
-        onCreated={() => setReloadKey((v) => v + 1)}
-      />
     </div>
   );
 };

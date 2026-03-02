@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { ChangeEvent, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Upload, X, Plus, Shield } from "lucide-react";
+import { Upload, Shield, Search } from "lucide-react";
 import GlowButton from "@/components/GlowButton";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,7 @@ import { getCurrentUser, getTeams, getUserTeam, saveTeams } from "@/lib/storage"
 import { uploadMediaFile } from "@/lib/media-upload";
 import { useGames } from "@/context/GamesContext";
 import { toast } from "sonner";
+import { searchAccounts } from "@/lib/storage";
 
 const CreateTeam = () => {
   const navigate = useNavigate();
@@ -27,13 +28,12 @@ const CreateTeam = () => {
     name: "",
     tag: "",
     game_id: "",
-    members: [] as string[],
   });
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [bannerPreview, setBannerPreview] = useState<string | null>(null);
-  const [emailInput, setEmailInput] = useState("");
+  const [inviteSearch, setInviteSearch] = useState("");
 
-  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const url = await uploadMediaFile(file, "teams");
@@ -41,7 +41,7 @@ const CreateTeam = () => {
     }
   };
 
-  const handleBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleBannerUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const url = await uploadMediaFile(file, "teams");
@@ -49,22 +49,7 @@ const CreateTeam = () => {
     }
   };
 
-  const addMember = () => {
-    if (emailInput.trim() && !formData.members.includes(emailInput)) {
-      setFormData({
-        ...formData,
-        members: [...formData.members, emailInput],
-      });
-      setEmailInput("");
-    }
-  };
-
-  const removeMember = (email: string) => {
-    setFormData({
-      ...formData,
-      members: formData.members.filter((m) => m !== email),
-    });
-  };
+  const suggestedUsers = searchAccounts(inviteSearch, currentUser.email).slice(0, 5);
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -223,47 +208,33 @@ const CreateTeam = () => {
             </div>
           </Card>
 
-          {/* Members */}
+          {/* Invite Search */}
           <Card className="p-6 border-white/10">
-            <h2 className="text-xl font-display font-bold mb-6">Team Members</h2>
+            <h2 className="text-xl font-display font-bold mb-6">Find Users to Invite</h2>
             <div className="space-y-4">
-              <div className="flex gap-2">
+              <div className="flex gap-2 items-center">
+                <Search size={16} className="text-muted-foreground" />
                 <Input
-                  placeholder="Enter member email"
-                  value={emailInput}
-                  onChange={(e) => setEmailInput(e.target.value)}
-                  onKeyPress={(e) => e.key === "Enter" && (e.preventDefault(), addMember())}
+                  placeholder="Search username or email"
+                  value={inviteSearch}
+                  onChange={(e) => setInviteSearch(e.target.value)}
                   className="bg-slate-900 border-white/10"
                 />
-                <Button
-                  type="button"
-                  onClick={addMember}
-                  variant="outline"
-                  className="gap-2"
-                >
-                  <Plus size={16} /> Add
-                </Button>
               </div>
-
-              {formData.members.length > 0 && (
-                <div className="mt-4 space-y-2">
-                  {formData.members.map((email) => (
-                    <div
-                      key={email}
-                      className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/10"
-                    >
-                      <span className="text-sm">{email}</span>
-                      <button
-                        type="button"
-                        onClick={() => removeMember(email)}
-                        className="p-1 hover:bg-white/10 rounded transition-colors"
-                      >
-                        <X size={16} className="text-muted-foreground" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <p className="text-xs text-muted-foreground">
+                After creating the team, open your team page and send real invites.
+              </p>
+              <div className="space-y-2">
+                {suggestedUsers.map((user) => (
+                  <div key={user.id} className="p-2 rounded-lg border border-white/10 bg-white/5 text-sm">
+                    <p className="font-medium">{user.full_name}</p>
+                    <p className="text-xs text-muted-foreground">{user.handle ? `@${user.handle} • ` : ""}{user.email}</p>
+                  </div>
+                ))}
+                {inviteSearch && suggestedUsers.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No matching accounts found.</p>
+                ) : null}
+              </div>
             </div>
           </Card>
 

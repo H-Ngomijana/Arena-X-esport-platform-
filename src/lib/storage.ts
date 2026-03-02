@@ -34,6 +34,7 @@ const KEYS = {
   currentUser: "arenax_current_user",
   accounts: "arenax_user_accounts",
   passwordResets: "arenax_password_reset_requests",
+  directMessages: "arenax_direct_messages",
   teamInvites: "arenax_team_invites",
   matchChatMessages: "arenax_match_chat_messages",
   systemSettings: "arenax_system_settings",
@@ -185,6 +186,15 @@ export interface PasswordResetRequest {
   token: string;
   expires_at: string;
   used: boolean;
+}
+
+export interface DirectMessage {
+  id: string;
+  created_at: string;
+  sender_email: string;
+  sender_name: string;
+  receiver_email: string;
+  message: string;
 }
 
 export interface MatchChatMessage {
@@ -810,6 +820,54 @@ export function saveAccounts(accounts: PlayerAccount[]) {
   safeWrite(KEYS.accounts, accounts);
 }
 
+export function updateAccountProfile(
+  email: string,
+  updates: { full_name?: string; handle?: string; avatar_url?: string }
+) {
+  const normalized = email.trim().toLowerCase();
+  const current = getAccounts();
+  const handleCandidate = updates.handle?.trim();
+  if (handleCandidate) {
+    const conflict = current.find(
+      (acc) =>
+        acc.email.toLowerCase() !== normalized &&
+        (acc.handle || "").toLowerCase() === handleCandidate.toLowerCase()
+    );
+    if (conflict) throw new Error("Nickname already in use.");
+  }
+
+  const next = current.map((acc) => {
+    if (acc.email.toLowerCase() !== normalized) return acc;
+    return {
+      ...acc,
+      full_name: updates.full_name?.trim() || acc.full_name,
+      handle: typeof updates.handle !== "undefined" ? (handleCandidate || undefined) : acc.handle,
+      avatar_url: typeof updates.avatar_url !== "undefined" ? updates.avatar_url : acc.avatar_url,
+    };
+  });
+  saveAccounts(next);
+  const updated = next.find((acc) => acc.email.toLowerCase() === normalized);
+  if (!updated) throw new Error("Account not found.");
+  setCurrentUserSession(normalizeSessionFromAccount(updated));
+  return updated;
+}
+
+export function searchAccounts(query: string, excludeEmail?: string) {
+  const keyword = query.trim().toLowerCase();
+  const excluded = (excludeEmail || "").toLowerCase();
+  return getAccounts()
+    .filter((acc) => acc.email_verified)
+    .filter((acc) => acc.email.toLowerCase() !== excluded)
+    .filter((acc) => {
+      if (!keyword) return true;
+      const name = acc.full_name.toLowerCase();
+      const handle = (acc.handle || "").toLowerCase();
+      const email = acc.email.toLowerCase();
+      return name.includes(keyword) || handle.includes(keyword) || email.includes(keyword);
+    })
+    .slice(0, 20);
+}
+
 export function getAccountByEmail(email: string) {
   const normalized = email.trim().toLowerCase();
   return getAccounts().find((item) => item.email.toLowerCase() === normalized);
@@ -1027,6 +1085,49 @@ export function resetPasswordWithToken(email: string, token: string, newPassword
   );
   safeWrite(KEYS.passwordResets, updatedResets);
   return true;
+}
+
+export function getDirectMessages() {
+  return safeRead<DirectMessage[]>(KEYS.directMessages, []);
+}
+
+export function getConversation(userAEmail: string, userBEmail: string) {
+  const a = userAEmail.trim().toLowerCase();
+  const b = userBEmail.trim().toLowerCase();
+  return getDirectMessages()
+    .filter(
+      (item) =>
+        (item.sender_email.toLowerCase() === a && item.receiver_email.toLowerCase() === b) ||
+        (item.sender_email.toLowerCase() === b && item.receiver_email.toLowerCase() === a)
+    )
+    .sort((x, y) => new Date(x.created_at).getTime() - new Date(y.created_at).getTime());
+}
+
+export function sendDirectMessage(payload: {
+  sender_email: string;
+  sender_name: string;
+  receiver_email: string;
+  message: string;
+}) {
+  const content = payload.message.trim();
+  if (!content) throw new Error("Message cannot be empty.");
+  const entry: DirectMessage = {
+    id: `dm_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+    created_at: new Date().toISOString(),
+    sender_email: payload.sender_email.trim().toLowerCase(),
+    sender_name: payload.sender_name,
+    receiver_email: payload.receiver_email.trim().toLowerCase(),
+    message: content,
+  };
+  safeWrite(KEYS.directMessages, [...getDirectMessages(), entry]);
+  addUserNotification({
+    user_email: entry.receiver_email,
+    type: "system",
+    title: `New message from ${entry.sender_name}`,
+    message: entry.message.length > 64 ? `${entry.message.slice(0, 64)}...` : entry.message,
+    link: `/messages?with=${encodeURIComponent(entry.sender_email)}`,
+  });
+  return entry;
 }
 
 export function getSystemSettings() {

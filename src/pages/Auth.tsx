@@ -1,4 +1,4 @@
-import { FormEvent, useMemo, useState } from "react";
+import { ChangeEvent, FormEvent, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, KeyRound, UserRound } from "lucide-react";
 import { uploadMediaFile } from "@/lib/media-upload";
@@ -44,7 +44,7 @@ const Auth = () => {
   const resetEmailFromLink = searchParams.get("email") || "";
   const resetTokenFromLink = searchParams.get("token") || "";
 
-  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
     const url = await uploadMediaFile(file, "users");
@@ -152,7 +152,7 @@ const Auth = () => {
             {mode === "signup"
               ? "Build your profile and start competing."
               : mode === "forgot"
-              ? "Request reset and apply your token."
+              ? "Request reset and verify from your email."
               : "Continue to your ArenaX account."}
           </p>
         </div>
@@ -237,15 +237,9 @@ const Auth = () => {
           </>
         ) : (
           <>
-            <div className="grid grid-cols-3 gap-2 mb-4">
+            <div className="grid grid-cols-1 gap-2 mb-4">
               <button type="button" onClick={handleGoogle} className="h-10 rounded-xl border border-white/20 bg-white/5 text-white/80 hover:bg-white/10">
-                G
-              </button>
-              <button type="button" className="h-10 rounded-xl border border-white/20 bg-white/5 text-white/40 cursor-not-allowed">
-                G
-              </button>
-              <button type="button" className="h-10 rounded-xl border border-white/20 bg-white/5 text-white/40 cursor-not-allowed">
-                f
+                Continue with Google
               </button>
             </div>
             <form className="space-y-3" onSubmit={handleLogin}>

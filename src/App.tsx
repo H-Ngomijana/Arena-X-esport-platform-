@@ -29,6 +29,8 @@ import NotFound from "./pages/NotFound";
 import PaymentFlow from "./pages/PaymentFlow";
 import TournamentLive from "./pages/TournamentLive";
 import Auth from "./pages/Auth";
+import AccountSettings from "./pages/AccountSettings";
+import Messages from "./pages/Messages";
 import { getSystemSettings } from "@/lib/storage";
 import { startRemoteSync } from "@/lib/remote-sync";
 
@@ -116,6 +118,8 @@ const App = () => {
                             <Route path="/teams" element={<TeamsPage />} />
                             <Route path="/team" element={<Team />} />
                             <Route path="/profile" element={<UserProfile />} />
+                            <Route path="/account-settings" element={<AccountSettings />} />
+                            <Route path="/messages" element={<Messages />} />
                             <Route path="/match-room" element={<MatchRoom />} />
                             <Route path="/notifications" element={<Notifications />} />
                             <Route path="/announcements" element={<Announcements />} />

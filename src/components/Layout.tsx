@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Menu, X, Bell, ChevronDown } from "lucide-react";
+import { Menu, X, Bell, ChevronDown, Settings } from "lucide-react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import BrandLogo from "@/components/BrandLogo";
@@ -21,6 +21,7 @@ const navLinks = [
   { label: "Rankings", to: "/rankings" },
   { label: "Games", to: "/games" },
   { label: "Teams", to: "/teams" },
+  { label: "Messages", to: "/messages" },
 ];
 
 const footerColumns: Array<{
@@ -185,39 +186,52 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                 Sign In
               </Link>
             ) : (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button className="hidden md:flex items-center gap-2 rounded-full border border-white/20 bg-white/5 px-2 py-1.5 hover:bg-white/10">
-                    {currentUser.avatar_url ? (
-                      <img src={currentUser.avatar_url} alt={currentUser.name} className="h-8 w-8 rounded-full object-cover" />
-                    ) : (
-                      <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-xs font-semibold">
-                        {currentUser.name?.[0] || "U"}
-                      </div>
-                    )}
-                    <span className="text-sm text-white/80 max-w-28 truncate">{currentUser.name}</span>
-                    <ChevronDown size={14} className="text-white/60" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-44 bg-[#0a0a12] border-white/10 text-white">
-                  <DropdownMenuItem
-                    onClick={() => {
-                      signOutUser();
-                      window.location.href = `/auth?mode=login&switch=1&redirect=${encodeURIComponent(location.pathname + location.search)}`;
-                    }}
-                  >
-                    Switch accounts
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => {
-                      signOutUser();
-                      window.location.href = "/";
-                    }}
-                  >
-                    Log out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <div className="hidden md:flex items-center gap-2">
+                <Link to="/account-settings" className="p-2 rounded-lg border border-white/20 bg-white/5 hover:bg-white/10 text-white/80" title="Account settings">
+                  <Settings size={16} />
+                </Link>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="flex items-center gap-2 rounded-full border border-white/20 bg-white/5 px-2 py-1.5 hover:bg-white/10">
+                      {currentUser.avatar_url ? (
+                        <img src={currentUser.avatar_url} alt={currentUser.name} className="h-8 w-8 rounded-full object-cover" />
+                      ) : (
+                        <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-xs font-semibold">
+                          {currentUser.name?.[0] || "U"}
+                        </div>
+                      )}
+                      <span className="text-sm text-white/80 max-w-28 truncate">{currentUser.name}</span>
+                      <ChevronDown size={14} className="text-white/60" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-44 bg-[#0a0a12] border-white/10 text-white">
+                    <DropdownMenuItem
+                      onClick={() => {
+                        window.location.href = "/account-settings";
+                      }}
+                    >
+                      <Settings size={14} className="mr-2" />
+                      Account settings
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        signOutUser();
+                        window.location.href = `/auth?mode=login&switch=1&redirect=${encodeURIComponent(location.pathname + location.search)}`;
+                      }}
+                    >
+                      Switch accounts
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        signOutUser();
+                        window.location.href = "/";
+                      }}
+                    >
+                      Log out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             )}
           </div>
         </div>
