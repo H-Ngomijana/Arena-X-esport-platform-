@@ -14,6 +14,7 @@ import { getHomeHeroVideoBlob, getHomeHeroVideoMeta } from "@/lib/hero-video";
 import { useRealtimeRefresh } from "@/components/hooks/useRealtimeRefresh";
 
 const DEFAULT_HERO_VIDEO = "/home-hero-default.mp4";
+const HOME_STAGE_VISUAL = "/home-stage-visual.jpeg";
 
 const Index = () => {
   useRealtimeRefresh({
@@ -32,7 +33,6 @@ const Index = () => {
   const teams = getTeams();
   const soloProfiles = getSoloProfiles();
   const joinRequests = getJoinRequests();
-  const latestStageImage = allMediaFeed.find((item) => item.kind === "image")?.url || heroBanner;
   const [heroVideoUrl, setHeroVideoUrl] = useState<string>("");
   const [defaultVideoFailed, setDefaultVideoFailed] = useState(false);
   const hasHeroVideoRef = useRef(false);
@@ -206,10 +206,10 @@ const Index = () => {
             </div>
           </div>
 
-          <div className="relative hidden lg:block">
+          <div className="relative block">
             <motion.div
               whileHover={{ y: -4, scale: 1.01 }}
-              className="relative h-[480px] rounded-[28px] border border-cyan-400/25 bg-slate-950/30 overflow-hidden shadow-[0_0_50px_rgba(59,130,246,0.28)]"
+              className="relative h-[300px] sm:h-[380px] lg:h-[480px] rounded-[28px] border border-cyan-400/25 bg-slate-950/30 overflow-hidden shadow-[0_0_50px_rgba(59,130,246,0.28)]"
             >
               <div className="absolute inset-0 bg-gradient-to-br from-cyan-400/10 via-transparent to-blue-500/20" />
               <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-20">
@@ -218,21 +218,8 @@ const Index = () => {
                   PLAY NOW
                 </span>
               </div>
-              {resolvedHeroVideo ? (
-                <video
-                  key={`${resolvedHeroVideo}-panel`}
-                  src={resolvedHeroVideo}
-                  className="absolute inset-0 w-full h-full object-cover"
-                  autoPlay
-                  muted
-                  loop
-                  preload="auto"
-                  playsInline
-                />
-              ) : (
-                <img src={latestStageImage} alt="Arena visual" className="absolute inset-0 w-full h-full object-cover" />
-              )}
-              <div className="absolute inset-0 bg-gradient-to-t from-[#060a1d]/45 via-transparent to-[#040816]/20" />
+              <img src={HOME_STAGE_VISUAL} alt="Arena visual" className="absolute inset-0 w-full h-full object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#060a1d]/20 via-transparent to-[#040816]/10" />
             </motion.div>
           </div>
         </motion.div>
