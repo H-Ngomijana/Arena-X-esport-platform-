@@ -8,7 +8,7 @@ import { useRealtimeRefresh } from "@/components/hooks/useRealtimeRefresh";
 import { toast } from "sonner";
 
 const Messages = () => {
-  useRealtimeRefresh({ keys: ["arenax_direct_messages", "arenax_user_accounts"], intervalMs: 2000 });
+  useRealtimeRefresh({ keys: ["arenax_direct_messages", "arenax_user_accounts"], intervalMs: 500 });
   const currentUser = useMemo(() => getCurrentUser(), []);
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedEmail = searchParams.get("with") || "";

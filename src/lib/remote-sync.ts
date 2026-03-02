@@ -66,6 +66,8 @@ let syncEnabled = false;
 let syncHydrated = false;
 const LOCAL_WRITE_PROTECT_MS = 2 * 60 * 1000;
 const MAX_RECORD_BYTES = 2 * 1024 * 1024;
+const PUSH_INTERVAL_MS = 800;
+const PULL_INTERVAL_MS = 800;
 
 function stripDataUrls(value: any): { value: any; changed: boolean } {
   if (typeof value === "string") {
@@ -111,7 +113,7 @@ function normalizeLocalRecordValue(key: string, rawValue: string | null): string
   }
 }
 
-async function pushAll(baseUrl: string) {
+async function pushAll(baseUrl: string, options?: { keepalive?: boolean }) {
   if (syncEnabled && !syncHydrated) return;
   if (pushInFlight) return;
   pushInFlight = true;
@@ -125,6 +127,7 @@ async function pushAll(baseUrl: string) {
     const response = await fetch(`${baseUrl}/sync/merge`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      keepalive: Boolean(options?.keepalive),
       body: JSON.stringify({ records }),
     });
     if (!response.ok) {
@@ -202,25 +205,37 @@ export function startRemoteSync() {
       syncHydrated = true;
     });
 
-  const pushTimer = window.setInterval(() => pushAll(baseUrl), 2000);
-  const pullTimer = window.setInterval(() => pullAll(baseUrl), 2000);
+  const pushTimer = window.setInterval(() => pushAll(baseUrl), PUSH_INTERVAL_MS);
+  const pullTimer = window.setInterval(() => pullAll(baseUrl), PULL_INTERVAL_MS);
 
   const onOnline = () => {
     pullAll(baseUrl);
     pushAll(baseUrl);
   };
-  const onDataChanged = () => {
+  const onDataChanged = (event: Event) => {
+    const detail = (event as CustomEvent<{ key?: string }>).detail;
+    const key = detail?.key || "";
     // Push quickly after local writes to reduce conflict window.
     pushAll(baseUrl);
+    // For chat/profile updates, pull shortly after push to minimize cross-device delay.
+    if (key === "arenax_direct_messages" || key === "arenax_user_accounts") {
+      window.setTimeout(() => pullAll(baseUrl), 150);
+    }
+  };
+  const onPageHide = () => {
+    // Flush latest local edits (avatars, account updates, chats) before tab closes.
+    pushAll(baseUrl, { keepalive: true });
   };
   window.addEventListener("online", onOnline);
   window.addEventListener("arenax:data-changed", onDataChanged as EventListener);
+  window.addEventListener("pagehide", onPageHide);
 
   return () => {
     window.clearInterval(pushTimer);
     window.clearInterval(pullTimer);
     window.removeEventListener("online", onOnline);
     window.removeEventListener("arenax:data-changed", onDataChanged as EventListener);
+    window.removeEventListener("pagehide", onPageHide);
     syncEnabled = false;
     syncHydrated = false;
     syncStarted = false;
