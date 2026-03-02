@@ -21,6 +21,8 @@ const Tournaments = () => {
   });
   const [active, setActive] = useState("All");
   const [search, setSearch] = useState("");
+  const [hoveredBanner, setHoveredBanner] = useState<string>("");
+  const [hoveredId, setHoveredId] = useState<string>("");
   const tournaments = getTournaments();
   const backgrounds = getPageBackgrounds();
   const pageBg = backgrounds.tournaments_page;
@@ -33,11 +35,21 @@ const Tournaments = () => {
 
   return (
     <div className="relative min-h-screen">
-      {pageBg && (
+      {(hoveredBanner || pageBg) && (
         <img
-          src={pageBg}
+          src={hoveredBanner || pageBg}
           alt="Tournaments background"
-          className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-25"
+          className={cn(
+            "pointer-events-none absolute inset-0 h-full w-full object-cover transition-opacity duration-500",
+            hoveredBanner ? "opacity-45" : "opacity-25"
+          )}
+        />
+      )}
+      {hoveredBanner && (
+        <img
+          src={hoveredBanner}
+          alt="Hovered tournament spotlight"
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-35 blur-sm transition-opacity duration-500"
         />
       )}
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-slate-950/80 via-slate-950/75 to-slate-950/95" />
@@ -73,7 +85,7 @@ const Tournaments = () => {
           </div>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="space-y-4">
           {filtered.map((t, index) => {
             const entryAmount = Number(t.entry_fee_amount ?? t.entry_fee ?? 0);
             const entryCurrency = t.entry_fee_currency || "RWF";
@@ -91,16 +103,49 @@ const Tournaments = () => {
                 initial={{ opacity: 0, y: 24 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.35, delay: index * 0.05 }}
-                className="md:col-span-2 lg:col-span-3"
               >
-                <Link to={`/tournament?id=${t.id}`} className="block group">
+                <Link
+                  to={`/tournament?id=${t.id}`}
+                  className="block group"
+                  onMouseEnter={() => {
+                    setHoveredId(t.id);
+                    setHoveredBanner(t.banner_url || "");
+                  }}
+                  onMouseLeave={() => {
+                    setHoveredId("");
+                    setHoveredBanner("");
+                  }}
+                  onFocus={() => {
+                    setHoveredId(t.id);
+                    setHoveredBanner(t.banner_url || "");
+                  }}
+                  onBlur={() => {
+                    setHoveredId("");
+                    setHoveredBanner("");
+                  }}
+                >
                   <motion.div
                     whileHover={{ y: -4 }}
                     transition={{ duration: 0.2 }}
-                    className="overflow-hidden rounded-2xl border border-white/10 bg-[#0a0a12]/95 backdrop-blur-sm"
+                    className={cn(
+                      "relative overflow-hidden rounded-2xl border border-white/10 bg-[#0a0a12]/95 backdrop-blur-sm",
+                      hoveredId === t.id && "border-cyan-300/40 shadow-[0_0_50px_rgba(34,211,238,0.18)]"
+                    )}
                   >
-                    <div className="grid md:grid-cols-[1.15fr_1fr]">
-                      <div className="p-5 md:p-6 flex flex-col justify-between">
+                    {t.banner_url ? (
+                      <img
+                        src={t.banner_url}
+                        alt={t.name}
+                        className={cn(
+                          "absolute inset-0 h-full w-full object-cover transition-all duration-500",
+                          hoveredId === t.id
+                            ? "opacity-45 brightness-110 saturate-125 scale-[1.02]"
+                            : "opacity-18 brightness-105 saturate-110"
+                        )}
+                      />
+                    ) : null}
+                    <div className="absolute inset-0 bg-gradient-to-r from-[#050914]/95 via-[#070d20]/86 to-[#050914]/80" />
+                    <div className="relative p-5 md:p-6 flex flex-col justify-between min-h-[190px]">
                         <div>
                           <div className="flex items-center gap-2 mb-2">
                             <span className="text-[10px] uppercase tracking-widest text-cyan-300/80 font-mono">
@@ -149,25 +194,6 @@ const Tournaments = () => {
                           <ArrowRight size={12} className="group-hover:translate-x-1 transition-transform" />
                         </div>
                       </div>
-                      <div className="relative min-h-[190px] md:min-h-full">
-                        {t.banner_url ? (
-                          <motion.img
-                            whileHover={{ scale: 1.05 }}
-                            transition={{ duration: 0.4 }}
-                            src={t.banner_url}
-                            alt={t.name}
-                            className="absolute inset-0 h-full w-full object-cover brightness-110 saturate-110"
-                          />
-                        ) : (
-                          <motion.div
-                            whileHover={{ scale: 1.03 }}
-                            transition={{ duration: 0.4 }}
-                            className="absolute inset-0 bg-gradient-to-br from-cyan-900/60 via-slate-900 to-fuchsia-900/50"
-                          />
-                        )}
-                        <div className="absolute inset-0 bg-gradient-to-l from-black/5 via-black/12 to-black/35 md:to-transparent" />
-                      </div>
-                    </div>
                   </motion.div>
                 </Link>
               </motion.div>
