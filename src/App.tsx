@@ -28,6 +28,7 @@ import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 import PaymentFlow from "./pages/PaymentFlow";
 import TournamentLive from "./pages/TournamentLive";
+import Auth from "./pages/Auth";
 import { getSystemSettings } from "@/lib/storage";
 import { startRemoteSync } from "@/lib/remote-sync";
 
@@ -96,6 +97,7 @@ const App = () => {
                         <Route path="/payment-flow" element={<PaymentFlow />} />
                         <Route path="/TournamentLive" element={<TournamentLive />} />
                         <Route path="/tournament-live" element={<TournamentLive />} />
+                        <Route path="/auth" element={<Auth />} />
                     <Route
                       path="*"
                       element={

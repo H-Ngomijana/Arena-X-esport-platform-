@@ -32,6 +32,9 @@ const KEYS = {
   disputeReports: "dispute_reports",
   notifications: "user_notifications",
   currentUser: "arenax_current_user",
+  accounts: "arenax_user_accounts",
+  teamInvites: "arenax_team_invites",
+  matchChatMessages: "arenax_match_chat_messages",
   systemSettings: "arenax_system_settings",
 } as const;
 
@@ -139,6 +142,52 @@ export interface UserNotification {
   read: boolean;
 }
 
+export interface PlayerAccount {
+  id: string;
+  created_at: string;
+  full_name: string;
+  handle?: string;
+  email: string;
+  password: string;
+  avatar_url?: string;
+  email_verified: boolean;
+  user_identifier: string;
+  provider: "email" | "google";
+}
+
+export interface CurrentUserSession {
+  id: string;
+  name: string;
+  email: string;
+  handle?: string;
+  avatar_url?: string;
+  is_guest: boolean;
+}
+
+export interface TeamInvite {
+  id: string;
+  created_at: string;
+  updated_at?: string;
+  team_id: string;
+  team_name: string;
+  invited_email: string;
+  invited_name: string;
+  invited_by_email: string;
+  invited_by_name: string;
+  status: "pending" | "accepted" | "declined" | "cancelled";
+}
+
+export interface MatchChatMessage {
+  id: string;
+  created_at: string;
+  match_id: string;
+  sender_email: string;
+  sender_name: string;
+  message: string;
+  scope: "team" | "global" | "admin";
+  team_id?: string;
+}
+
 export interface MatchParticipant {
   profile_id: string;
   profile_type: "team" | "solo";
@@ -240,7 +289,27 @@ export function saveTournaments(tournaments: any[]) {
 }
 
 export function getTeams() {
-  return readSharedCollection<any>(KEYS.teams, mockTeams);
+  const byId = new Map(users.map((u) => [u.id, u]));
+  return readSharedCollection<any>(KEYS.teams, mockTeams).map((team) => {
+    const rawMembers = Array.isArray(team.members) ? team.members : [];
+    const members = rawMembers
+      .map((member) => {
+        if (typeof member !== "string") return "";
+        if (member.includes("@")) return member.toLowerCase();
+        const mapped = byId.get(member);
+        return mapped?.email?.toLowerCase() || member.toLowerCase();
+      })
+      .filter(Boolean);
+
+    const captainFromId = team.captain_id ? byId.get(team.captain_id)?.email : "";
+    const captainEmail = (team.captain_email || captainFromId || members[0] || "").toLowerCase();
+
+    return {
+      ...team,
+      captain_email: captainEmail,
+      members: Array.from(new Set(members)),
+    };
+  });
 }
 
 export function saveTeams(teams: any[]) {
@@ -482,27 +551,389 @@ export function getUnreadNotificationCount(userEmail: string) {
   return getUserNotifications(userEmail).filter((item) => !item.read).length;
 }
 
-export function getCurrentUser() {
-  const stored = safeRead<{ id?: string; name?: string; email?: string } | null>(
-    KEYS.currentUser,
-    null
+export function getUserTeam(userEmail: string) {
+  const normalized = userEmail.trim().toLowerCase();
+  return getTeams().find((team) => {
+    const members = Array.isArray(team.members) ? team.members.map((item: string) => item.toLowerCase()) : [];
+    return team.captain_email?.toLowerCase() === normalized || members.includes(normalized);
+  });
+}
+
+export function getTeamInvites() {
+  return safeRead<TeamInvite[]>(KEYS.teamInvites, []);
+}
+
+export function saveTeamInvites(invites: TeamInvite[]) {
+  safeWrite(KEYS.teamInvites, invites);
+}
+
+export function getUserTeamInvites(userEmail: string) {
+  const normalized = userEmail.trim().toLowerCase();
+  return getTeamInvites()
+    .filter((invite) => invite.invited_email.toLowerCase() === normalized)
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+}
+
+export function getTeamInvitesByTeam(teamId: string) {
+  return getTeamInvites()
+    .filter((invite) => invite.team_id === teamId)
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+}
+
+export function searchInvitablePlayers(query: string, teamId: string) {
+  const keyword = query.trim().toLowerCase();
+  const team = getTeams().find((item) => item.id === teamId);
+  const teamMembers = new Set((team?.members || []).map((item: string) => item.toLowerCase()));
+  const pendingInviteTargets = new Set(
+    getTeamInvites()
+      .filter((invite) => invite.status === "pending")
+      .map((invite) => invite.invited_email.toLowerCase())
   );
-  if (!stored?.email) {
-    const seed = Math.random().toString(36).slice(2, 8);
-    const guest = {
-      id: `guest-${seed}`,
-      name: `Guest-${seed.toUpperCase()}`,
-      email: `guest-${seed}@guest.local`,
-    };
-    localStorage.setItem(KEYS.currentUser, JSON.stringify(guest));
-    return guest;
+
+  return getAccounts()
+    .filter((account) => account.email_verified)
+    .filter((account) => {
+      if (teamMembers.has(account.email.toLowerCase())) return false;
+      if (getUserTeam(account.email)) return false;
+      if (pendingInviteTargets.has(account.email.toLowerCase())) return false;
+      if (!keyword) return true;
+      const name = account.full_name.toLowerCase();
+      const handle = (account.handle || "").toLowerCase();
+      const email = account.email.toLowerCase();
+      return name.includes(keyword) || handle.includes(keyword) || email.includes(keyword);
+    })
+    .slice(0, 8);
+}
+
+export function createTeamInvite(payload: {
+  team_id: string;
+  invited_email: string;
+  invited_by_email: string;
+}) {
+  const invitedEmail = payload.invited_email.trim().toLowerCase();
+  const inviterEmail = payload.invited_by_email.trim().toLowerCase();
+  const team = getTeams().find((item) => item.id === payload.team_id);
+  if (!team) throw new Error("Team not found.");
+  if ((team.captain_email || "").toLowerCase() !== inviterEmail) {
+    throw new Error("Only the team captain can invite players.");
   }
-  const fallback = users[0];
-  return {
-    id: stored?.id || fallback.id,
-    name: stored?.name || fallback.name,
-    email: stored?.email || fallback.email,
+  if (!invitedEmail || invitedEmail === inviterEmail) {
+    throw new Error("Invalid player selection.");
+  }
+  if (getUserTeam(invitedEmail)) {
+    throw new Error("Player is already in a team.");
+  }
+  const pendingForPlayer = getTeamInvites().find(
+    (invite) => invite.invited_email.toLowerCase() === invitedEmail && invite.status === "pending"
+  );
+  if (pendingForPlayer) {
+    throw new Error("Player already has a pending invite.");
+  }
+
+  const account = getAccountByEmail(invitedEmail);
+  if (!account) throw new Error("Player account not found.");
+  const captain = getAccountByEmail(inviterEmail);
+  const invite: TeamInvite = {
+    id: `inv_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`,
+    created_at: new Date().toISOString(),
+    team_id: team.id,
+    team_name: team.name,
+    invited_email: invitedEmail,
+    invited_name: account.full_name,
+    invited_by_email: inviterEmail,
+    invited_by_name: captain?.full_name || inviterEmail,
+    status: "pending",
   };
+  saveTeamInvites([invite, ...getTeamInvites()]);
+  addUserNotification({
+    user_email: invitedEmail,
+    type: "system",
+    title: "Team Invitation",
+    message: `${team.name} invited you to join the team.`,
+    link: `/team?id=${team.id}`,
+  });
+  return invite;
+}
+
+export function respondToTeamInvite(inviteId: string, invitedEmail: string, action: "accept" | "decline") {
+  const normalizedEmail = invitedEmail.trim().toLowerCase();
+  const invites = getTeamInvites();
+  const invite = invites.find((item) => item.id === inviteId);
+  if (!invite || invite.invited_email.toLowerCase() !== normalizedEmail) {
+    throw new Error("Invite not found.");
+  }
+  if (invite.status !== "pending") {
+    throw new Error("Invite already handled.");
+  }
+
+  if (action === "accept") {
+    if (getUserTeam(normalizedEmail)) {
+      throw new Error("You must leave your current team first.");
+    }
+    const teams = getTeams();
+    const nextTeams = teams.map((team) => {
+      if (team.id !== invite.team_id) return team;
+      const members = Array.isArray(team.members) ? team.members.map((item: string) => item.toLowerCase()) : [];
+      return {
+        ...team,
+        members: Array.from(new Set([...members, normalizedEmail])),
+      };
+    });
+    saveTeams(nextTeams);
+  }
+
+  const nextInvites = invites.map((item) => {
+    if (item.id === inviteId) {
+      return {
+        ...item,
+        status: action === "accept" ? "accepted" : "declined",
+        updated_at: new Date().toISOString(),
+      };
+    }
+    if (action === "accept" && item.invited_email.toLowerCase() === normalizedEmail && item.status === "pending") {
+      return {
+        ...item,
+        status: "cancelled",
+        updated_at: new Date().toISOString(),
+      };
+    }
+    return item;
+  });
+  saveTeamInvites(nextInvites);
+
+  const inviteOwner = getAccountByEmail(invite.invited_by_email);
+  addUserNotification({
+    user_email: invite.invited_by_email,
+    type: "system",
+    title: action === "accept" ? "Invite Accepted" : "Invite Declined",
+    message: `${invite.invited_name} ${action === "accept" ? "accepted" : "declined"} your invite to ${invite.team_name}.`,
+    link: `/team?id=${invite.team_id}`,
+  });
+  if (inviteOwner && action === "accept") {
+    addUserNotification({
+      user_email: normalizedEmail,
+      type: "system",
+      title: "Joined Team",
+      message: `You joined ${invite.team_name}.`,
+      link: `/team?id=${invite.team_id}`,
+    });
+  }
+  return nextInvites.find((item) => item.id === inviteId);
+}
+
+export function leaveTeam(teamId: string, userEmail: string) {
+  const normalized = userEmail.trim().toLowerCase();
+  const nextTeams = getTeams().map((team) => {
+    if (team.id !== teamId) return team;
+    const members = (team.members || [])
+      .map((item: string) => item.toLowerCase())
+      .filter((item: string) => item !== normalized);
+    return {
+      ...team,
+      members,
+      captain_email:
+        (team.captain_email || "").toLowerCase() === normalized ? members[0] || "" : team.captain_email,
+    };
+  });
+  saveTeams(nextTeams);
+}
+
+export function getMatchChatMessages(matchId: string) {
+  return safeRead<MatchChatMessage[]>(KEYS.matchChatMessages, [])
+    .filter((message) => message.match_id === matchId)
+    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+}
+
+export function addMatchChatMessage(payload: Omit<MatchChatMessage, "id" | "created_at">) {
+  if (!payload.message.trim()) throw new Error("Message cannot be empty.");
+  const entry: MatchChatMessage = {
+    id: `msg_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`,
+    created_at: new Date().toISOString(),
+    ...payload,
+    message: payload.message.trim(),
+  };
+  safeWrite(KEYS.matchChatMessages, [...safeRead<MatchChatMessage[]>(KEYS.matchChatMessages, []), entry]);
+  return entry;
+}
+
+function createGuestSession(): CurrentUserSession {
+  return {
+    id: "guest",
+    name: "Guest",
+    email: "guest@guest.local",
+    is_guest: true,
+  };
+}
+
+function createUserIdentifier() {
+  return `ARX-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+}
+
+function normalizeSessionFromAccount(account: PlayerAccount): CurrentUserSession {
+  return {
+    id: account.id,
+    name: account.full_name,
+    email: account.email.toLowerCase(),
+    handle: account.handle,
+    avatar_url: account.avatar_url,
+    is_guest: false,
+  };
+}
+
+export function getAccounts() {
+  return safeRead<PlayerAccount[]>(KEYS.accounts, []);
+}
+
+export function saveAccounts(accounts: PlayerAccount[]) {
+  safeWrite(KEYS.accounts, accounts);
+}
+
+export function getAccountByEmail(email: string) {
+  const normalized = email.trim().toLowerCase();
+  return getAccounts().find((item) => item.email.toLowerCase() === normalized);
+}
+
+export function getCurrentUser(): CurrentUserSession {
+  const stored = safeRead<CurrentUserSession | null>(KEYS.currentUser, null);
+  if (!stored?.email) return createGuestSession();
+  return {
+    id: stored.id || "guest",
+    name: stored.name || "Guest",
+    email: stored.email.toLowerCase(),
+    handle: stored.handle,
+    avatar_url: stored.avatar_url,
+    is_guest: Boolean(stored.is_guest),
+  };
+}
+
+export function setCurrentUserSession(session: CurrentUserSession) {
+  safeWrite(KEYS.currentUser, session);
+}
+
+export function isAuthenticatedUser() {
+  return !getCurrentUser().is_guest;
+}
+
+export function getAuthenticatedUser() {
+  const session = getCurrentUser();
+  if (session.is_guest) return null;
+  return session;
+}
+
+export function signOutUser() {
+  safeWrite(KEYS.currentUser, createGuestSession());
+}
+
+export function signUpWithEmail(payload: {
+  full_name: string;
+  email: string;
+  password: string;
+  handle?: string;
+  avatar_url?: string;
+}) {
+  const normalizedEmail = payload.email.trim().toLowerCase();
+  if (!normalizedEmail || !payload.password.trim() || !payload.full_name.trim()) {
+    throw new Error("Missing required signup fields.");
+  }
+  if (getAccountByEmail(normalizedEmail)) {
+    throw new Error("An account already exists with this email.");
+  }
+
+  const normalizedHandle = payload.handle?.trim();
+  if (normalizedHandle) {
+    const existingHandle = getAccounts().find(
+      (account) => (account.handle || "").toLowerCase() === normalizedHandle.toLowerCase()
+    );
+    if (existingHandle) {
+      throw new Error("This nickname is already in use.");
+    }
+  }
+
+  const account: PlayerAccount = {
+    id: `usr_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`,
+    created_at: new Date().toISOString(),
+    full_name: payload.full_name.trim(),
+    handle: normalizedHandle || undefined,
+    email: normalizedEmail,
+    password: payload.password,
+    avatar_url: payload.avatar_url,
+    email_verified: false,
+    user_identifier: createUserIdentifier(),
+    provider: "email",
+  };
+  saveAccounts([account, ...getAccounts()]);
+  const session = normalizeSessionFromAccount(account);
+  setCurrentUserSession(session);
+  return account;
+}
+
+export function markEmailVerified(email: string) {
+  const normalizedEmail = email.trim().toLowerCase();
+  const accounts = getAccounts();
+  const updated = accounts.map((account) =>
+    account.email.toLowerCase() === normalizedEmail ? { ...account, email_verified: true } : account
+  );
+  saveAccounts(updated);
+  const account = updated.find((item) => item.email.toLowerCase() === normalizedEmail);
+  if (!account) return null;
+  const current = getCurrentUser();
+  if (current.email.toLowerCase() === normalizedEmail) {
+    setCurrentUserSession(normalizeSessionFromAccount(account));
+  }
+  return account;
+}
+
+export function signInWithEmail(email: string, password: string) {
+  const account = getAccountByEmail(email);
+  if (!account || account.password !== password) {
+    throw new Error("Invalid email or password.");
+  }
+  if (!account.email_verified) {
+    throw new Error("Please verify your email before signing in.");
+  }
+  const session = normalizeSessionFromAccount(account);
+  setCurrentUserSession(session);
+  return session;
+}
+
+export function signInWithGoogle(payload: {
+  email: string;
+  full_name: string;
+  avatar_url?: string;
+}) {
+  const normalizedEmail = payload.email.trim().toLowerCase();
+  if (!normalizedEmail) throw new Error("Google email is required.");
+  const existing = getAccountByEmail(normalizedEmail);
+  if (existing) {
+    const upgraded: PlayerAccount = {
+      ...existing,
+      provider: "google",
+      email_verified: true,
+      full_name: payload.full_name?.trim() || existing.full_name,
+      avatar_url: payload.avatar_url || existing.avatar_url,
+    };
+    saveAccounts(getAccounts().map((item) => (item.id === upgraded.id ? upgraded : item)));
+    const session = normalizeSessionFromAccount(upgraded);
+    setCurrentUserSession(session);
+    return session;
+  }
+
+  const account: PlayerAccount = {
+    id: `usr_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`,
+    created_at: new Date().toISOString(),
+    full_name: payload.full_name?.trim() || normalizedEmail.split("@")[0],
+    handle: undefined,
+    email: normalizedEmail,
+    password: "",
+    avatar_url: payload.avatar_url,
+    email_verified: true,
+    user_identifier: createUserIdentifier(),
+    provider: "google",
+  };
+  saveAccounts([account, ...getAccounts()]);
+  const session = normalizeSessionFromAccount(account);
+  setCurrentUserSession(session);
+  return session;
 }
 
 export function getSystemSettings() {

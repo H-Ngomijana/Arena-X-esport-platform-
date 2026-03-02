@@ -37,11 +37,15 @@ const TournamentLive = () => {
   }, [currentUser.email, tournamentId, tournament?.id, matches.length]);
 
   useEffect(() => {
+    if (currentUser.is_guest) {
+      navigate(`/auth?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+      return;
+    }
     if (!approved) {
       toast.error("You need to be approved to enter.");
       navigate(`/Tournament?id=${tournamentId}&message=not_approved`);
     }
-  }, [approved, navigate, tournamentId]);
+  }, [approved, navigate, tournamentId, currentUser.is_guest]);
 
   const refreshData = () => {
     setTournament(getTournaments().find((item) => item.id === tournamentId));

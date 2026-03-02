@@ -48,6 +48,22 @@ const PaymentFlow = () => {
   if (!tournament) {
     return <div className="min-h-screen bg-slate-950 flex items-center justify-center text-white/70">Tournament not found.</div>;
   }
+  if (currentUser.is_guest) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
+        <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0a0a12] p-6 text-center space-y-3">
+          <p className="text-lg font-bold text-white">Login Required</p>
+          <p className="text-sm text-white/70">You must login before payment and tournament join.</p>
+          <button
+            onClick={() => navigate(`/auth?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`)}
+            className="h-11 px-5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold"
+          >
+            LOGIN / SIGN UP
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const amount = Number(tournament.entry_fee_amount ?? tournament.entry_fee ?? 0);
   const currency = tournament.entry_fee_currency || "RWF";

@@ -5,7 +5,7 @@ import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import BrandLogo from "@/components/BrandLogo";
 import { toast } from "sonner";
-import { getCurrentUser, getJoinRequests, getMyJoinRequests, getUnreadNotificationCount } from "@/lib/storage";
+import { getCurrentUser, getMyJoinRequests, getUnreadNotificationCount, signOutUser } from "@/lib/storage";
 import { useRealtimeRefresh } from "@/components/hooks/useRealtimeRefresh";
 
 const navLinks = [
@@ -62,14 +62,19 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   const reduceMotion = useReducedMotion();
 
   useEffect(() => {
+    if (currentUser.is_guest) {
+      setUnreadCount(0);
+      return;
+    }
     const refresh = () => setUnreadCount(getUnreadNotificationCount(currentUser.email));
     refresh();
     const timer = setInterval(refresh, 2000);
     return () => clearInterval(timer);
-  }, [currentUser.email]);
+  }, [currentUser.email, currentUser.is_guest]);
 
   useEffect(() => {
     const timer = setInterval(() => {
+      if (currentUser.is_guest) return;
       if (location.pathname.toLowerCase().includes("tournamentlive")) return;
 
       const approved = getMyJoinRequests(currentUser.email)
@@ -91,7 +96,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     }, 2000);
 
     return () => clearInterval(timer);
-  }, [currentUser.email, location.pathname, navigate]);
+  }, [currentUser.email, currentUser.is_guest, location.pathname, navigate]);
 
   useEffect(() => {
     if (redirectCountdown <= 0 || !redirectTarget) return;
@@ -169,6 +174,21 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
             >
               <Menu size={20} />
             </button>
+            {currentUser.is_guest ? (
+              <Link to={`/auth?redirect=${encodeURIComponent(location.pathname + location.search)}`} className="text-xs font-semibold px-3 py-2 rounded-lg bg-amber-500 text-black">
+                Sign In
+              </Link>
+            ) : (
+              <button
+                onClick={() => {
+                  signOutUser();
+                  window.location.href = "/";
+                }}
+                className="text-xs font-semibold px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20"
+              >
+                Sign Out
+              </button>
+            )}
           </div>
         </div>
       </header>

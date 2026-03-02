@@ -134,6 +134,8 @@ const Tournament = () => {
   const countdownHours = Math.floor((countdownDiff / (1000 * 60 * 60)) % 24);
   const countdownMinutes = Math.floor((countdownDiff / (1000 * 60)) % 60);
   const countdownSeconds = Math.floor((countdownDiff / 1000) % 60);
+  const allowsSolo = (game?.game_modes || []).includes("solo");
+  const allowsTeam = (game?.game_modes || []).includes("team");
 
   const handleShare = () => {
     const url = `${window.location.origin}/Tournament?id=${id}`;
@@ -143,6 +145,10 @@ const Tournament = () => {
   };
 
   const joinTournament = () => {
+    if (currentUser.is_guest) {
+      navigate(`/auth?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+      return;
+    }
     if (myRequest?.approval_status === "approved") {
       navigate(`/TournamentLive?id=${tournamentData.id}`);
       return;
@@ -185,6 +191,12 @@ const Tournament = () => {
       return;
     }
 
+    if (!allowsTeam && allowsSolo) {
+      setProfileType("solo");
+    } else if (!allowsSolo && allowsTeam) {
+      setProfileType("team");
+    }
+
     if (profileType === "team") {
       if (myTeams.length > 0) {
         if (!selectedProfileId || !myTeams.some((team) => team.id === selectedProfileId)) {
@@ -214,7 +226,7 @@ const Tournament = () => {
         setSelectedProfileId(myTeams[0].id);
       }
     }
-  }, [profileType, myTeams, mySoloProfiles, selectedProfileId, refreshTick, hasAnyProfile]);
+  }, [profileType, myTeams, mySoloProfiles, selectedProfileId, refreshTick, hasAnyProfile, allowsSolo, allowsTeam]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
@@ -491,6 +503,18 @@ const Tournament = () => {
                 >
                   Rejected - Contact Admin
                 </button>
+              ) : currentUser.is_guest ? (
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground">Sign in to join this tournament.</p>
+                  <GlowButton
+                    className="w-full"
+                    onClick={() =>
+                      navigate(`/auth?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`)
+                    }
+                  >
+                    LOGIN / SIGN UP
+                  </GlowButton>
+                </div>
               ) : !hasAnyProfile ? (
                 <div className="space-y-3">
                   <p className="text-sm text-muted-foreground">Create a team or solo profile before joining.</p>
@@ -509,6 +533,10 @@ const Tournament = () => {
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       onClick={() => {
+                        if (!allowsSolo) {
+                          toast.error("Solo participation is disabled for this game.");
+                          return;
+                        }
                         if (!mySoloProfiles.length) {
                           toast.error("No solo profile found for this game.");
                           return;
@@ -517,11 +545,16 @@ const Tournament = () => {
                         setSelectedProfileId("");
                       }}
                       className={`h-10 rounded-lg border text-sm ${profileType === "solo" ? "bg-primary/20 border-primary/40 text-primary" : "bg-white/5 border-white/10 text-white/70"}`}
+                      disabled={!allowsSolo}
                     >
                       SOLO
                     </button>
                     <button
                       onClick={() => {
+                        if (!allowsTeam) {
+                          toast.error("Team participation is disabled for this game.");
+                          return;
+                        }
                         if (!myTeams.length) {
                           toast.error("No team found for this game.");
                           return;
@@ -530,6 +563,7 @@ const Tournament = () => {
                         setSelectedProfileId("");
                       }}
                       className={`h-10 rounded-lg border text-sm ${profileType === "team" ? "bg-primary/20 border-primary/40 text-primary" : "bg-white/5 border-white/10 text-white/70"}`}
+                      disabled={!allowsTeam}
                     >
                       TEAM
                     </button>

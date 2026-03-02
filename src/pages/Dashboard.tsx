@@ -17,6 +17,19 @@ const Dashboard = () => {
   });
 
   const user = getCurrentUser();
+  if (user.is_guest) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0a0a12] p-6 text-center">
+          <h2 className="text-2xl font-black mb-2">Sign in Required</h2>
+          <p className="text-sm text-white/70 mb-4">Login to access your dashboard, teams, and tournament history.</p>
+          <Link to={`/auth?redirect=${encodeURIComponent("/dashboard")}`}>
+            <GlowButton className="w-full">LOGIN / SIGN UP</GlowButton>
+          </Link>
+        </div>
+      </div>
+    );
+  }
   const tournaments = getTournaments();
   const teams = getTeams();
   const matches = getMatches();
@@ -173,4 +186,3 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
-

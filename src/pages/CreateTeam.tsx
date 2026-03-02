@@ -14,13 +14,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { getTeams, saveTeams } from "@/lib/storage";
+import { getCurrentUser, getTeams, getUserTeam, saveTeams } from "@/lib/storage";
 import { uploadMediaFile } from "@/lib/media-upload";
 import { useGames } from "@/context/GamesContext";
+import { toast } from "sonner";
 
 const CreateTeam = () => {
   const navigate = useNavigate();
   const { games } = useGames();
+  const currentUser = getCurrentUser();
   const [formData, setFormData] = useState({
     name: "",
     tag: "",
@@ -66,13 +68,23 @@ const CreateTeam = () => {
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (currentUser.is_guest) {
+      toast.error("Login is required before creating a team.");
+      navigate(`/auth?redirect=${encodeURIComponent("/create-team")}`);
+      return;
+    }
+    if (getUserTeam(currentUser.email)) {
+      toast.error("You are already in a team. Leave it before creating a new one.");
+      return;
+    }
     try {
       const newTeam = {
         id: Date.now().toString(),
         name: formData.name,
         tag: formData.tag,
-        members: formData.members,
-        captain_id: formData.members?.[0] || "",
+        members: [currentUser.email],
+        captain_id: currentUser.id,
+        captain_email: currentUser.email,
         rating: 1500,
         rank_tier: "Bronze",
         wins: 0,
@@ -88,6 +100,7 @@ const CreateTeam = () => {
       const existing = getTeams();
       const updated = Array.isArray(existing) ? [...existing, newTeam] : [newTeam];
       saveTeams(updated);
+      toast.success("Team created. Invite players from the team page.");
       navigate("/teams");
     } catch (err) {
       console.error("Failed to save team", err);
