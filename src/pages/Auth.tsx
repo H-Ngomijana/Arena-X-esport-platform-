@@ -12,7 +12,7 @@ import {
 } from "@/lib/storage";
 import { toast } from "sonner";
 
-type Mode = "signup" | "login" | "forgot";
+type Mode = "signup" | "login" | "forgot" | "reset";
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -20,7 +20,7 @@ const Auth = () => {
   const redirect = useMemo(() => searchParams.get("redirect") || "/dashboard", [searchParams]);
   const mode = useMemo<Mode>(() => {
     const raw = (searchParams.get("mode") || "login").toLowerCase();
-    if (raw === "signup" || raw === "forgot") return raw;
+    if (raw === "signup" || raw === "forgot" || raw === "reset") return raw;
     return "login";
   }, [searchParams]);
 
@@ -39,8 +39,10 @@ const Auth = () => {
   const [rememberMe, setRememberMe] = useState(Boolean(rememberedEmail));
 
   const [resetEmail, setResetEmail] = useState("");
-  const [resetToken, setResetToken] = useState("");
   const [resetNewPassword, setResetNewPassword] = useState("");
+  const [resetConfirmPassword, setResetConfirmPassword] = useState("");
+  const resetEmailFromLink = searchParams.get("email") || "";
+  const resetTokenFromLink = searchParams.get("token") || "";
 
   const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -111,16 +113,20 @@ const Auth = () => {
     event.preventDefault();
     try {
       requestPasswordReset(resetEmail);
-      toast.success("Reset message sent to your registered email.");
+      toast.success("Verification email sent. Check your email and open the reset link.");
     } catch (error: any) {
       toast.error(error?.message || "Could not send reset message.");
     }
   };
 
-  const handleResetByToken = (event: FormEvent) => {
+  const handleResetFromEmailLink = (event: FormEvent) => {
     event.preventDefault();
+    if (resetNewPassword !== resetConfirmPassword) {
+      toast.error("Passwords do not match.");
+      return;
+    }
     try {
-      resetPasswordWithToken(resetEmail, resetToken, resetNewPassword);
+      resetPasswordWithToken(resetEmailFromLink, resetTokenFromLink, resetNewPassword);
       toast.success("Password reset complete.");
       navigate(`/auth?mode=login&redirect=${encodeURIComponent(redirect)}`);
     } catch (error: any) {
@@ -189,22 +195,45 @@ const Auth = () => {
             <form className="space-y-3" onSubmit={handleForgot}>
               <input className="w-full h-11 rounded-xl border border-white/20 bg-white/5 px-4 placeholder:text-white/40 focus:outline-none focus:border-cyan-300/60" placeholder="Registered email" type="email" value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} required />
               <button type="submit" className="w-full h-12 rounded-xl bg-gradient-to-r from-fuchsia-500 to-rose-500 font-bold uppercase tracking-wide">
-                Send Reset Message
+                Verify Email
               </button>
             </form>
-            <form className="space-y-3 mt-4" onSubmit={handleResetByToken}>
-              <input className="w-full h-11 rounded-xl border border-white/20 bg-white/5 px-4 placeholder:text-white/40 focus:outline-none focus:border-cyan-300/60" placeholder="Reset token" value={resetToken} onChange={(e) => setResetToken(e.target.value)} required />
-              <input className="w-full h-11 rounded-xl border border-white/20 bg-white/5 px-4 placeholder:text-white/40 focus:outline-none focus:border-cyan-300/60" placeholder="New password" type="password" value={resetNewPassword} onChange={(e) => setResetNewPassword(e.target.value)} required />
-              <button type="submit" className="w-full h-11 rounded-xl border border-white/25 bg-white/10 font-semibold inline-flex items-center justify-center gap-2">
-                <KeyRound size={15} /> Apply New Password
-              </button>
-            </form>
+            <p className="mt-4 text-sm text-white/65">
+              After verification, open the reset link from your email and set the new password.
+            </p>
             <p className="text-center text-sm text-white/60 pt-3">
               Back to
               <Link className="text-fuchsia-300 ml-1" to={`/auth?mode=login&redirect=${encodeURIComponent(redirect)}`}>
                 Sign in
               </Link>
             </p>
+          </>
+        ) : mode === "reset" ? (
+          <>
+            <div className="rounded-xl border border-cyan-300/25 bg-cyan-400/10 p-3 text-xs text-cyan-200 mb-4">
+              Email verified. Set your new password.
+            </div>
+            <form className="space-y-3" onSubmit={handleResetFromEmailLink}>
+              <input
+                className="w-full h-11 rounded-xl border border-white/20 bg-white/5 px-4 placeholder:text-white/40 focus:outline-none focus:border-cyan-300/60"
+                placeholder="New password"
+                type="password"
+                value={resetNewPassword}
+                onChange={(e) => setResetNewPassword(e.target.value)}
+                required
+              />
+              <input
+                className="w-full h-11 rounded-xl border border-white/20 bg-white/5 px-4 placeholder:text-white/40 focus:outline-none focus:border-cyan-300/60"
+                placeholder="Confirm new password"
+                type="password"
+                value={resetConfirmPassword}
+                onChange={(e) => setResetConfirmPassword(e.target.value)}
+                required
+              />
+              <button type="submit" className="w-full h-11 rounded-xl border border-white/25 bg-white/10 font-semibold inline-flex items-center justify-center gap-2">
+                <KeyRound size={15} /> Reset Password
+              </button>
+            </form>
           </>
         ) : (
           <>

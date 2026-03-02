@@ -982,15 +982,22 @@ export function requestPasswordReset(email: string) {
   };
   const all = safeRead<PasswordResetRequest[]>(KEYS.passwordResets, []);
   safeWrite(KEYS.passwordResets, [request, ...all]);
+  const base =
+    typeof window !== "undefined" && window.location?.origin
+      ? window.location.origin
+      : "";
+  const resetLink = `${base}/auth?mode=reset&email=${encodeURIComponent(normalized)}&token=${encodeURIComponent(
+    token
+  )}`;
 
   addUserNotification({
     user_email: normalized,
     type: "system",
-    title: "Password Reset Requested",
-    message: `Reset token: ${token}. This token expires in 30 minutes.`,
-    link: "/auth?mode=login",
+    title: "Verify Password Reset",
+    message: "Open this verification link to set a new password. Link expires in 30 minutes.",
+    link: resetLink,
   });
-  return { ok: true, sent: true };
+  return { ok: true, sent: true, reset_link: resetLink };
 }
 
 export function resetPasswordWithToken(email: string, token: string, newPassword: string) {
