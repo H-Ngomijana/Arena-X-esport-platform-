@@ -33,6 +33,7 @@ const KEYS = {
   notifications: "user_notifications",
   currentUser: "arenax_current_user",
   accounts: "arenax_user_accounts",
+  passwordResets: "arenax_password_reset_requests",
   teamInvites: "arenax_team_invites",
   matchChatMessages: "arenax_match_chat_messages",
   systemSettings: "arenax_system_settings",
@@ -175,6 +176,15 @@ export interface TeamInvite {
   invited_by_email: string;
   invited_by_name: string;
   status: "pending" | "accepted" | "declined" | "cancelled";
+}
+
+export interface PasswordResetRequest {
+  id: string;
+  created_at: string;
+  email: string;
+  token: string;
+  expires_at: string;
+  used: boolean;
 }
 
 export interface MatchChatMessage {
@@ -934,6 +944,64 @@ export function signInWithGoogle(payload: {
   const session = normalizeSessionFromAccount(account);
   setCurrentUserSession(session);
   return session;
+}
+
+export function requestPasswordReset(email: string) {
+  const normalized = email.trim().toLowerCase();
+  if (!normalized) throw new Error("Email is required.");
+  const account = getAccountByEmail(normalized);
+  // Keep generic response for security and UX parity.
+  if (!account) return { ok: true, sent: false };
+
+  const token = `${Math.random().toString(36).slice(2, 8).toUpperCase()}${Math.floor(Math.random() * 90 + 10)}`;
+  const request: PasswordResetRequest = {
+    id: `pw_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`,
+    created_at: new Date().toISOString(),
+    email: normalized,
+    token,
+    expires_at: new Date(Date.now() + 1000 * 60 * 30).toISOString(),
+    used: false,
+  };
+  const all = safeRead<PasswordResetRequest[]>(KEYS.passwordResets, []);
+  safeWrite(KEYS.passwordResets, [request, ...all]);
+
+  addUserNotification({
+    user_email: normalized,
+    type: "system",
+    title: "Password Reset Requested",
+    message: `Reset token: ${token}. This token expires in 30 minutes.`,
+    link: "/auth?mode=login",
+  });
+  return { ok: true, sent: true };
+}
+
+export function resetPasswordWithToken(email: string, token: string, newPassword: string) {
+  const normalized = email.trim().toLowerCase();
+  const normalizedToken = token.trim().toUpperCase();
+  if (!normalized || !normalizedToken || !newPassword.trim()) {
+    throw new Error("Email, token, and new password are required.");
+  }
+
+  const resets = safeRead<PasswordResetRequest[]>(KEYS.passwordResets, []);
+  const match = resets.find(
+    (item) =>
+      item.email === normalized &&
+      item.token === normalizedToken &&
+      !item.used &&
+      new Date(item.expires_at).getTime() > Date.now()
+  );
+  if (!match) throw new Error("Invalid or expired reset token.");
+
+  const updatedAccounts = getAccounts().map((account) =>
+    account.email === normalized ? { ...account, password: newPassword, email_verified: true } : account
+  );
+  saveAccounts(updatedAccounts);
+
+  const updatedResets = resets.map((item) =>
+    item.id === match.id ? { ...item, used: true } : item
+  );
+  safeWrite(KEYS.passwordResets, updatedResets);
+  return true;
 }
 
 export function getSystemSettings() {

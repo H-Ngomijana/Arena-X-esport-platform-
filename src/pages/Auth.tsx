@@ -1,28 +1,45 @@
 import { FormEvent, useMemo, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { markEmailVerified, signInWithEmail, signInWithGoogle, signUpWithEmail } from "@/lib/storage";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { uploadMediaFile } from "@/lib/media-upload";
+import {
+  markEmailVerified,
+  requestPasswordReset,
+  resetPasswordWithToken,
+  signInWithEmail,
+  signInWithGoogle,
+  signUpWithEmail,
+} from "@/lib/storage";
 import { toast } from "sonner";
+
+type Mode = "signup" | "login" | "forgot";
 
 const Auth = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const redirect = useMemo(() => searchParams.get("redirect") || "/dashboard", [searchParams]);
+  const mode = useMemo<Mode>(() => {
+    const raw = (searchParams.get("mode") || "login").toLowerCase();
+    if (raw === "signup" || raw === "forgot") return raw;
+    return "login";
+  }, [searchParams]);
+
+  const rememberedEmail = localStorage.getItem("arenax_remember_email") || "";
 
   const [signupName, setSignupName] = useState("");
   const [signupEmail, setSignupEmail] = useState("");
   const [signupPassword, setSignupPassword] = useState("");
+  const [signupConfirmPassword, setSignupConfirmPassword] = useState("");
   const [signupHandle, setSignupHandle] = useState("");
   const [signupAvatar, setSignupAvatar] = useState("");
   const [pendingVerificationEmail, setPendingVerificationEmail] = useState("");
 
-  const [loginEmail, setLoginEmail] = useState("");
+  const [loginEmail, setLoginEmail] = useState(rememberedEmail);
   const [loginPassword, setLoginPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(Boolean(rememberedEmail));
+
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetToken, setResetToken] = useState("");
+  const [resetNewPassword, setResetNewPassword] = useState("");
 
   const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -34,6 +51,10 @@ const Auth = () => {
 
   const handleSignUp = (event: FormEvent) => {
     event.preventDefault();
+    if (signupPassword !== signupConfirmPassword) {
+      toast.error("Passwords do not match.");
+      return;
+    }
     try {
       const created = signUpWithEmail({
         full_name: signupName,
@@ -60,6 +81,11 @@ const Auth = () => {
     event.preventDefault();
     try {
       signInWithEmail(loginEmail, loginPassword);
+      if (rememberMe) {
+        localStorage.setItem("arenax_remember_email", loginEmail.trim().toLowerCase());
+      } else {
+        localStorage.removeItem("arenax_remember_email");
+      }
       toast.success("Signed in.");
       navigate(redirect);
     } catch (error: any) {
@@ -81,110 +107,121 @@ const Auth = () => {
     navigate(redirect);
   };
 
+  const handleForgot = (event: FormEvent) => {
+    event.preventDefault();
+    try {
+      requestPasswordReset(resetEmail);
+      toast.success("Reset message sent to your registered email.");
+    } catch (error: any) {
+      toast.error(error?.message || "Could not send reset message.");
+    }
+  };
+
+  const handleResetByToken = (event: FormEvent) => {
+    event.preventDefault();
+    try {
+      resetPasswordWithToken(resetEmail, resetToken, resetNewPassword);
+      toast.success("Password reset complete. You can sign in now.");
+      navigate(`/auth?mode=login&redirect=${encodeURIComponent(redirect)}`);
+    } catch (error: any) {
+      toast.error(error?.message || "Reset failed.");
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-[#050508] text-white flex items-center justify-center px-4 py-12">
-      <Card className="w-full max-w-xl p-6 border-white/10 bg-[#0a0a12]">
-        <h1 className="text-2xl font-black mb-2">ArenaX Account Access</h1>
-        <p className="text-sm text-white/60 mb-6">
-          Browse freely, but joining tournaments requires a verified account.
-        </p>
-
-        <Tabs defaultValue="login" className="w-full">
-          <TabsList className="grid grid-cols-2 w-full bg-white/5 border border-white/10">
-            <TabsTrigger value="login">Login</TabsTrigger>
-            <TabsTrigger value="signup">Sign Up</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="login" className="mt-4">
-            <form className="space-y-4" onSubmit={handleLogin}>
-              <div>
-                <Label htmlFor="login-email">Email</Label>
-                <Input
-                  id="login-email"
-                  value={loginEmail}
-                  onChange={(event) => setLoginEmail(event.target.value)}
-                  className="bg-slate-900 border-white/10 mt-1"
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="login-password">Password</Label>
-                <Input
-                  id="login-password"
-                  type="password"
-                  value={loginPassword}
-                  onChange={(event) => setLoginPassword(event.target.value)}
-                  className="bg-slate-900 border-white/10 mt-1"
-                  required
-                />
-              </div>
-              <Button type="submit" className="w-full bg-emerald-500 hover:bg-emerald-400 text-black font-bold">
-                Sign In
-              </Button>
-              <Button type="button" variant="outline" className="w-full border-white/20" onClick={handleGoogle}>
-                Continue with Google
-              </Button>
-            </form>
-          </TabsContent>
-
-          <TabsContent value="signup" className="mt-4">
+    <div className="min-h-screen bg-[#1c1f4a] flex items-center justify-center px-4 py-10">
+      <div className="w-full max-w-sm rounded-[24px] bg-[#e6e6e6] p-6 shadow-2xl">
+        {mode === "signup" ? (
+          <>
+            <div className="h-20 rounded-2xl bg-[#ec1f6a] text-white text-3xl font-semibold flex items-center justify-center mb-6">
+              REGISTER
+            </div>
             <form className="space-y-4" onSubmit={handleSignUp}>
-              <div>
-                <Label htmlFor="signup-name">Full Name</Label>
-                <Input
-                  id="signup-name"
-                  value={signupName}
-                  onChange={(event) => setSignupName(event.target.value)}
-                  className="bg-slate-900 border-white/10 mt-1"
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="signup-handle">Gaming Handle (Optional)</Label>
-                <Input
-                  id="signup-handle"
-                  value={signupHandle}
-                  onChange={(event) => setSignupHandle(event.target.value)}
-                  className="bg-slate-900 border-white/10 mt-1"
-                />
-              </div>
-              <div>
-                <Label htmlFor="signup-email">Email</Label>
-                <Input
-                  id="signup-email"
-                  value={signupEmail}
-                  onChange={(event) => setSignupEmail(event.target.value)}
-                  className="bg-slate-900 border-white/10 mt-1"
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="signup-password">Password</Label>
-                <Input
-                  id="signup-password"
-                  type="password"
-                  value={signupPassword}
-                  onChange={(event) => setSignupPassword(event.target.value)}
-                  className="bg-slate-900 border-white/10 mt-1"
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="signup-avatar">Profile Picture</Label>
-                <Input id="signup-avatar" type="file" accept="image/*" onChange={handleAvatarUpload} className="mt-1" />
-              </div>
-              <Button type="submit" className="w-full bg-amber-500 hover:bg-amber-400 text-black font-bold">
-                Create Account
-              </Button>
+              <input className="w-full h-11 rounded-lg border border-black/40 px-4 bg-transparent" placeholder="Full names" value={signupName} onChange={(e) => setSignupName(e.target.value)} required />
+              <input className="w-full h-11 rounded-lg border border-black/40 px-4 bg-transparent" placeholder="Email" type="email" value={signupEmail} onChange={(e) => setSignupEmail(e.target.value)} required />
+              <input className="w-full h-11 rounded-lg border border-black/40 px-4 bg-transparent" placeholder="Nickname (optional)" value={signupHandle} onChange={(e) => setSignupHandle(e.target.value)} />
+              <input className="w-full h-11 rounded-lg border border-black/40 px-4 bg-transparent" placeholder="Password" type="password" value={signupPassword} onChange={(e) => setSignupPassword(e.target.value)} required />
+              <input className="w-full h-11 rounded-lg border border-black/40 px-4 bg-transparent" placeholder="Confirm password" type="password" value={signupConfirmPassword} onChange={(e) => setSignupConfirmPassword(e.target.value)} required />
+              <label className="block w-full h-11 rounded-lg border border-black/40 px-4 bg-transparent leading-[2.75rem] cursor-pointer text-black/65">
+                {signupAvatar ? "Profile photo selected" : "Choose profile picture"}
+                <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
+              </label>
+              <button type="submit" className="w-full h-12 rounded-lg bg-[#ec1f6a] text-white text-xl font-semibold">
+                REGISTER
+              </button>
               {pendingVerificationEmail ? (
-                <Button type="button" onClick={handleVerify} className="w-full bg-cyan-500 hover:bg-cyan-400 text-black font-bold">
-                  Verify Email and Continue
-                </Button>
+                <button type="button" onClick={handleVerify} className="w-full h-11 rounded-lg bg-black text-white font-semibold">
+                  VERIFY EMAIL
+                </button>
               ) : null}
             </form>
-          </TabsContent>
-        </Tabs>
-      </Card>
+            <p className="text-center mt-5 text-lg">
+              have an account?
+              <Link className="text-[#ec1f6a] ml-1" to={`/auth?mode=login&redirect=${encodeURIComponent(redirect)}`}>
+                log in
+              </Link>
+            </p>
+          </>
+        ) : mode === "forgot" ? (
+          <>
+            <div className="h-20 rounded-2xl bg-[#ec1f6a] text-white text-3xl font-semibold flex items-center justify-center mb-6">
+              RESET PASSWORD
+            </div>
+            <form className="space-y-4" onSubmit={handleForgot}>
+              <input className="w-full h-11 rounded-lg border border-black/40 px-4 bg-transparent" placeholder="Registered email" type="email" value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} required />
+              <button type="submit" className="w-full h-12 rounded-lg bg-[#ec1f6a] text-white text-lg font-semibold">
+                SEND RESET EMAIL
+              </button>
+            </form>
+            <form className="space-y-4 mt-4" onSubmit={handleResetByToken}>
+              <input className="w-full h-11 rounded-lg border border-black/40 px-4 bg-transparent" placeholder="Reset token from email" value={resetToken} onChange={(e) => setResetToken(e.target.value)} required />
+              <input className="w-full h-11 rounded-lg border border-black/40 px-4 bg-transparent" placeholder="New password" type="password" value={resetNewPassword} onChange={(e) => setResetNewPassword(e.target.value)} required />
+              <button type="submit" className="w-full h-12 rounded-lg bg-black text-white text-lg font-semibold">
+                RESET NOW
+              </button>
+            </form>
+            <p className="text-center mt-5 text-lg">
+              back to
+              <Link className="text-[#ec1f6a] ml-1" to={`/auth?mode=login&redirect=${encodeURIComponent(redirect)}`}>
+                sign in
+              </Link>
+            </p>
+          </>
+        ) : (
+          <>
+            <div className="h-20 rounded-2xl bg-[#ec1f6a] text-white text-3xl font-semibold flex items-center justify-center mb-6">
+              SIGN IN
+            </div>
+            <div className="flex items-center justify-center gap-8 mb-5 text-3xl">
+              <button type="button" onClick={handleGoogle} aria-label="Google sign in">G</button>
+              <button type="button" aria-label="Github sign in">G</button>
+              <button type="button" aria-label="Facebook sign in">f</button>
+            </div>
+            <form className="space-y-4" onSubmit={handleLogin}>
+              <input className="w-full h-11 rounded-lg border border-black/40 px-4 bg-transparent" placeholder="Email" type="email" value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} required />
+              <input className="w-full h-11 rounded-lg border border-black/40 px-4 bg-transparent" placeholder="Current password" type="password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} required />
+              <label className="inline-flex items-center gap-2 text-black/55">
+                <input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} />
+                remember me
+              </label>
+              <button type="submit" className="w-full h-12 rounded-lg bg-[#ec1f6a] text-white text-xl font-semibold">
+                SIGN IN
+              </button>
+            </form>
+            <div className="text-center mt-4 text-lg">
+              <Link className="text-[#ec1f6a]" to={`/auth?mode=forgot&redirect=${encodeURIComponent(redirect)}`}>
+                forgot password?
+              </Link>
+            </div>
+            <p className="text-center mt-3 text-lg">
+              Don't have an account?
+              <Link className="text-[#ec1f6a] ml-1" to={`/auth?mode=signup&redirect=${encodeURIComponent(redirect)}`}>
+                sign up
+              </Link>
+            </p>
+          </>
+        )}
+      </div>
     </div>
   );
 };
