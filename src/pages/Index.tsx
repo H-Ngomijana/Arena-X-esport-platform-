@@ -14,6 +14,7 @@ import { getHomeHeroVideoBlob, getHomeHeroVideoMeta, getHomeHeroVideoStreamUrl }
 import { useRealtimeRefresh } from "@/components/hooks/useRealtimeRefresh";
 
 const HOME_STAGE_VISUAL = "/home-stage-visual.jpeg";
+const DEFAULT_HOME_HERO_VIDEO = "/home-hero-default.mp4";
 
 const Index = () => {
   useRealtimeRefresh({
@@ -35,7 +36,8 @@ const Index = () => {
   const [heroVideoUrl, setHeroVideoUrl] = useState<string>("");
   const hasHeroVideoRef = useRef(false);
   const [heroRetryToken, setHeroRetryToken] = useState(0);
-  const resolvedHeroVideo = heroVideoUrl;
+  const [defaultVideoFailed, setDefaultVideoFailed] = useState(false);
+  const resolvedHeroVideo = heroVideoUrl || (!defaultVideoFailed ? DEFAULT_HOME_HERO_VIDEO : "");
 
   const parseAmount = (value: unknown): number => {
     if (typeof value === "number") return Number.isFinite(value) ? value : 0;
@@ -155,8 +157,13 @@ const Index = () => {
             preload="auto"
             playsInline
             onError={() => {
-              // Keep current hero state and trigger a retry with a fresh URL token.
-              setTimeout(() => setHeroRetryToken((n) => n + 1), 1200);
+              if (heroVideoUrl) {
+                // Remote/admin hero stream failed temporarily, retry with fresh token.
+                setTimeout(() => setHeroRetryToken((n) => n + 1), 1200);
+                return;
+              }
+              // Default bundled video failed on this device/browser, fallback to image.
+              setDefaultVideoFailed(true);
             }}
           />
         ) : (
