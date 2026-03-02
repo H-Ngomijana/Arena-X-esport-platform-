@@ -154,7 +154,11 @@ const Game = () => {
               return (
                 <Card key={tournament.id} className="overflow-hidden border-white/10 bg-white/[0.02]">
                   {tournament.banner_url ? (
-                    <img src={tournament.banner_url} alt={tournament.name} className="h-28 w-full object-cover opacity-80" />
+                    <img
+                      src={tournament.banner_url}
+                      alt={tournament.name}
+                      className="h-32 w-full object-cover brightness-110 saturate-110"
+                    />
                   ) : (
                     <div className="h-28 w-full bg-gradient-to-r from-slate-800 to-slate-900" />
                   )}

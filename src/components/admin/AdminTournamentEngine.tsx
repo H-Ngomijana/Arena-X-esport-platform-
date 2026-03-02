@@ -104,9 +104,15 @@ const AdminTournamentEngine = ({ logAction }: { logAction: (a: string) => void }
   const handleBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const result = await uploadMediaFile(file, "tournaments");
-    setForm((f) => ({ ...f, banner_url: result }));
-    logAction(`Uploaded tournament banner: ${file.name}`);
+    try {
+      const result = await uploadMediaFile(file, "tournaments");
+      setForm((f) => ({ ...f, banner_url: result }));
+      logAction(`Uploaded tournament banner: ${file.name}`);
+      toast.success("Tournament public banner uploaded");
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to upload tournament banner");
+    }
   };
 
   const handleSave = () => {
@@ -198,6 +204,13 @@ const AdminTournamentEngine = ({ logAction }: { logAction: (a: string) => void }
           return (
             <div key={t.id} className="rounded-xl border border-white/10 bg-white/[0.02]">
               <div className="flex items-center gap-3 p-4">
+                <div className="w-20 h-14 rounded-md overflow-hidden border border-white/10 bg-black/30 shrink-0">
+                  {t.banner_url ? (
+                    <img src={t.banner_url} alt={`${t.name} banner`} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-r from-slate-700 to-slate-900" />
+                  )}
+                </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="font-mono text-sm text-white">{t.name}</span>
@@ -415,8 +428,11 @@ const AdminTournamentEngine = ({ logAction }: { logAction: (a: string) => void }
                 className="bg-white/5 border-white/10 text-white font-mono min-h-28"
               />
             </div>
-            <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3">
-              <label className="font-mono text-[10px] text-white/40 uppercase mb-2 block">Tournament Background Banner (Optional)</label>
+            <div className="rounded-xl border border-cyan-500/25 bg-cyan-500/5 p-3">
+              <label className="font-mono text-[10px] text-cyan-300 uppercase mb-2 block">Tournament Public Banner (Visible to Users)</label>
+              <p className="font-mono text-[10px] text-white/45 mb-2">
+                Shown on tournament selection cards in Games and Tournaments pages.
+              </p>
               {form.banner_url ? (
                 <div className="relative h-28 rounded-lg overflow-hidden border border-white/10">
                   <img src={form.banner_url} alt="Tournament banner preview" className="h-full w-full object-cover" />

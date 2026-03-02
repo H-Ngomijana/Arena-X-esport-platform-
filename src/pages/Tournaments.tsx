@@ -156,7 +156,7 @@ const Tournaments = () => {
                             transition={{ duration: 0.4 }}
                             src={t.banner_url}
                             alt={t.name}
-                            className="absolute inset-0 h-full w-full object-cover"
+                            className="absolute inset-0 h-full w-full object-cover brightness-110 saturate-110"
                           />
                         ) : (
                           <motion.div
@@ -165,7 +165,7 @@ const Tournaments = () => {
                             className="absolute inset-0 bg-gradient-to-br from-cyan-900/60 via-slate-900 to-fuchsia-900/50"
                           />
                         )}
-                        <div className="absolute inset-0 bg-gradient-to-l from-black/15 via-black/35 to-black/80 md:to-transparent" />
+                        <div className="absolute inset-0 bg-gradient-to-l from-black/5 via-black/12 to-black/35 md:to-transparent" />
                       </div>
                     </div>
                   </motion.div>

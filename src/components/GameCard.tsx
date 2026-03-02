@@ -30,11 +30,11 @@ const GameCard = ({ id, name, slug, description, player_count, tournament_count,
         <img
           src={background_url || banner_url}
           alt={name}
-          className="absolute inset-0 w-full h-full object-cover opacity-40 group-hover:opacity-60 transition-opacity duration-500"
+          className="absolute inset-0 w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity duration-400"
         />
       ) : (
         <div
-          className="absolute inset-0 opacity-30 group-hover:opacity-50 transition-opacity duration-500"
+          className="absolute inset-0 opacity-70 group-hover:opacity-85 transition-opacity duration-400"
           style={{
             background: theme_config
               ? `linear-gradient(135deg, ${theme_config.gradient_from}, ${theme_config.gradient_to})`
@@ -43,7 +43,7 @@ const GameCard = ({ id, name, slug, description, player_count, tournament_count,
         />
       )}
       
-      <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-t from-background/85 via-background/35 to-transparent" />
       
       <div className="relative z-10">
         <h3 className="text-xl font-display font-bold mb-1">{name}</h3>
