@@ -41,7 +41,7 @@ const Tournaments = () => {
           alt="Tournaments background"
           className={cn(
             "pointer-events-none absolute inset-0 h-full w-full object-cover transition-opacity duration-500",
-            hoveredBanner ? "opacity-45" : "opacity-25"
+            hoveredBanner ? "opacity-65 brightness-110 saturate-125" : "opacity-35 brightness-105 saturate-110"
           )}
         />
       )}
@@ -49,7 +49,7 @@ const Tournaments = () => {
         <img
           src={hoveredBanner}
           alt="Hovered tournament spotlight"
-          className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-35 blur-sm transition-opacity duration-500"
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-48 blur-[2px] brightness-125 saturate-130 transition-opacity duration-500"
         />
       )}
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-slate-950/80 via-slate-950/75 to-slate-950/95" />
@@ -85,7 +85,7 @@ const Tournaments = () => {
           </div>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-4 max-w-5xl mx-auto">
           {filtered.map((t, index) => {
             const entryAmount = Number(t.entry_fee_amount ?? t.entry_fee ?? 0);
             const entryCurrency = t.entry_fee_currency || "RWF";
@@ -139,12 +139,12 @@ const Tournaments = () => {
                         className={cn(
                           "absolute inset-0 h-full w-full object-cover transition-all duration-500",
                           hoveredId === t.id
-                            ? "opacity-45 brightness-110 saturate-125 scale-[1.02]"
-                            : "opacity-18 brightness-105 saturate-110"
+                            ? "opacity-60 brightness-125 saturate-130 scale-[1.03]"
+                            : "opacity-28 brightness-115 saturate-120"
                         )}
                       />
                     ) : null}
-                    <div className="absolute inset-0 bg-gradient-to-r from-[#050914]/95 via-[#070d20]/86 to-[#050914]/80" />
+                    <div className="absolute inset-0 bg-gradient-to-r from-[#050914]/92 via-[#070d20]/74 to-[#050914]/62" />
                     <div className="relative p-5 md:p-6 flex flex-col justify-between min-h-[190px]">
                         <div>
                           <div className="flex items-center gap-2 mb-2">
