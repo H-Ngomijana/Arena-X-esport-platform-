@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { games as initialGames } from "@/lib/mock-data";
 import { markKeyDirty } from "@/lib/remote-sync";
+import { resolveMediaUrl } from "@/lib/media-url";
 
 export interface Game {
   id: string;
@@ -37,7 +38,13 @@ function readStoredGames(): Game[] | null {
     const raw = localStorage.getItem(GAMES_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as Game[]) : null;
+    if (!Array.isArray(parsed)) return null;
+    return (parsed as Game[]).map((game) => ({
+      ...game,
+      logo_url: resolveMediaUrl(game.logo_url || ""),
+      banner_url: resolveMediaUrl(game.banner_url || ""),
+      background_url: resolveMediaUrl(game.background_url || ""),
+    }));
   } catch {
     return null;
   }

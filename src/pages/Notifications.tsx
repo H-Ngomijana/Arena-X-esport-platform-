@@ -4,7 +4,6 @@ import { Trophy, Swords, AlertTriangle, Bell, Megaphone } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
-  getAnnouncements,
   getCurrentUser,
   getUserNotifications,
   markAllNotificationsAsRead,
@@ -47,23 +46,8 @@ const Notifications = () => {
     [currentUser.email]
   );
 
-  const announcementNotifications = useMemo<Notification[]>(
-    () =>
-      getAnnouncements().map((item) => ({
-        id: `a_${item.id}`,
-        type: "announcement",
-        title: `[${item.type.toUpperCase()}] ${item.title}`,
-        message: item.message,
-        timestamp: formatTimeAgo(item.created_at),
-        is_read: false,
-        link: "/notifications",
-      })),
-    []
-  );
-
   const [notifications, setNotifications] = useState<Notification[]>([
     ...dynamicUserNotifications,
-    ...announcementNotifications,
   ]);
 
   const getIcon = (type: Notification["type"]) => {
@@ -91,7 +75,7 @@ const Notifications = () => {
 
   const markAllAsRead = () => {
     markAllNotificationsAsRead(currentUser.email);
-    setNotifications((prev) => prev.filter((n) => n.type === "announcement"));
+    setNotifications([]);
   };
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;

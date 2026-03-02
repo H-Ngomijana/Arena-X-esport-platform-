@@ -1,5 +1,6 @@
 import { tournaments as mockTournaments, teams as mockTeams, users, matches as mockMatches } from "@/lib/mock-data";
 import { markKeyDirty } from "@/lib/remote-sync";
+import { resolveMediaUrl } from "@/lib/media-url";
 
 export interface PlatformAnnouncement {
   id: string;
@@ -291,6 +292,7 @@ export function getTournaments() {
       },
       tournament_rules: item.tournament_rules || item.rules || "",
       featured: Boolean(item.featured),
+      banner_url: resolveMediaUrl(item.banner_url || ""),
       registered_solos: Array.isArray(item.registered_solos) ? item.registered_solos : [],
       registered_teams: Array.isArray(item.registered_teams) ? item.registered_teams : [],
       current_match_id: item.current_match_id || "",
@@ -326,6 +328,8 @@ export function getTeams() {
 
     return {
       ...team,
+      logo_url: resolveMediaUrl(team.logo_url || ""),
+      banner_url: resolveMediaUrl(team.banner_url || ""),
       captain_email: captainEmail,
       members: Array.from(new Set(members)),
     };
@@ -390,7 +394,10 @@ export function addAnnouncement(item: Omit<PlatformAnnouncement, "id" | "created
 }
 
 export function getMediaFeed() {
-  return safeRead<PlatformMediaItem[]>(KEYS.mediaFeed, []);
+  return safeRead<PlatformMediaItem[]>(KEYS.mediaFeed, []).map((item) => ({
+    ...item,
+    url: resolveMediaUrl(item.url || ""),
+  }));
 }
 
 export function saveMediaFeed(items: PlatformMediaItem[]) {
@@ -414,7 +421,15 @@ export function removeMediaItem(id: string) {
 }
 
 export function getPageBackgrounds() {
-  return safeRead<PageBackgrounds>(KEYS.pageBackgrounds, {});
+  const raw = safeRead<PageBackgrounds>(KEYS.pageBackgrounds, {});
+  return {
+    games_page: resolveMediaUrl(raw.games_page || ""),
+    game_page_default: resolveMediaUrl(raw.game_page_default || ""),
+    teams_page: resolveMediaUrl(raw.teams_page || ""),
+    team_page_default: resolveMediaUrl(raw.team_page_default || ""),
+    tournaments_page: resolveMediaUrl(raw.tournaments_page || ""),
+    tournament_page_default: resolveMediaUrl(raw.tournament_page_default || ""),
+  };
 }
 
 export function savePageBackgrounds(items: PageBackgrounds) {
@@ -429,7 +444,10 @@ export function updatePageBackground(key: keyof PageBackgrounds, value: string) 
 }
 
 export function getSoloProfiles() {
-  return safeRead<SoloProfile[]>(KEYS.soloProfiles, []);
+  return safeRead<SoloProfile[]>(KEYS.soloProfiles, []).map((item) => ({
+    ...item,
+    avatar_url: resolveMediaUrl(item.avatar_url || ""),
+  }));
 }
 
 export function createSoloProfile(payload: Omit<SoloProfile, "id" | "created_at" | "rating" | "rank_tier" | "stats"> & Partial<Pick<SoloProfile, "rating" | "rank_tier" | "stats">>) {
@@ -830,7 +848,10 @@ function normalizeSessionFromAccount(account: PlayerAccount): CurrentUserSession
 }
 
 export function getAccounts() {
-  return safeRead<PlayerAccount[]>(KEYS.accounts, []);
+  return safeRead<PlayerAccount[]>(KEYS.accounts, []).map((item) => ({
+    ...item,
+    avatar_url: resolveMediaUrl(item.avatar_url || ""),
+  }));
 }
 
 export function saveAccounts(accounts: PlayerAccount[]) {
