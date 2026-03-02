@@ -433,6 +433,18 @@ export function createSoloProfile(payload: Omit<SoloProfile, "id" | "created_at"
   };
   const all = getSoloProfiles();
   safeWrite(KEYS.soloProfiles, [entry, ...all]);
+  if (entry.avatar_url) {
+    const updatedAccounts = getAccounts().map((account) =>
+      account.email.toLowerCase() === entry.user_email.toLowerCase()
+        ? { ...account, avatar_url: entry.avatar_url }
+        : account
+    );
+    saveAccounts(updatedAccounts);
+    const current = safeRead<CurrentUserSession | null>(KEYS.currentUser, null);
+    if (current?.email?.toLowerCase() === entry.user_email.toLowerCase()) {
+      setCurrentUserSession({ ...current, avatar_url: entry.avatar_url });
+    }
+  }
   return entry;
 }
 
@@ -806,12 +818,18 @@ export function getAccountByEmail(email: string) {
 export function getCurrentUser(): CurrentUserSession {
   const stored = safeRead<CurrentUserSession | null>(KEYS.currentUser, null);
   if (!stored?.email) return createGuestSession();
+  const normalizedEmail = stored.email.toLowerCase();
+  const account = getAccountByEmail(normalizedEmail);
+  const fallbackSoloAvatar = getSoloProfiles()
+    .filter((item) => item.user_email.toLowerCase() === normalizedEmail && item.avatar_url)
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]?.avatar_url;
+
   return {
-    id: stored.id || "guest",
-    name: stored.name || "Guest",
-    email: stored.email.toLowerCase(),
-    handle: stored.handle,
-    avatar_url: stored.avatar_url,
+    id: account?.id || stored.id || "guest",
+    name: account?.full_name || stored.name || "Guest",
+    email: normalizedEmail,
+    handle: account?.handle || stored.handle,
+    avatar_url: account?.avatar_url || stored.avatar_url || fallbackSoloAvatar,
     is_guest: Boolean(stored.is_guest),
   };
 }
