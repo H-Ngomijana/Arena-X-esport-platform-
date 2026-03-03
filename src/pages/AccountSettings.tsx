@@ -41,9 +41,16 @@ const AccountSettings = () => {
   const onUploadAvatar = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    const url = await uploadMediaFile(file, "users");
-    setAvatarUrl(url);
-    toast.success("Profile image uploaded.");
+    try {
+      const url = await uploadMediaFile(file, "users");
+      setAvatarUrl(url);
+      updateAccountProfile(currentUser.email, { avatar_url: url });
+      toast.success("Profile image uploaded and saved.");
+    } catch (error: any) {
+      toast.error(error?.message || "Profile image upload failed.");
+    } finally {
+      event.target.value = "";
+    }
   };
 
   const onSave = async () => {

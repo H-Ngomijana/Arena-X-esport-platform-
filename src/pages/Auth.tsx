@@ -47,9 +47,15 @@ const Auth = () => {
   const handleAvatarUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    const url = await uploadMediaFile(file, "users");
-    setSignupAvatar(url);
-    toast.success("Profile image uploaded.");
+    try {
+      const url = await uploadMediaFile(file, "users");
+      setSignupAvatar(url);
+      toast.success("Profile image uploaded.");
+    } catch (error: any) {
+      toast.error(error?.message || "Profile image upload failed.");
+    } finally {
+      event.target.value = "";
+    }
   };
 
   const handleSignUp = (event: FormEvent) => {
