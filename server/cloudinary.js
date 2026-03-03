@@ -34,18 +34,10 @@ export function uploadBufferToCloudinary({
   overwrite = false,
   invalidate = true,
   filename,
-}: {
-  buffer: Buffer;
-  folder: string;
-  publicId?: string;
-  resourceType?: "image" | "video" | "raw" | "auto";
-  overwrite?: boolean;
-  invalidate?: boolean;
-  filename?: string;
 }) {
   assertCloudinaryConfigured();
 
-  return new Promise<any>((resolve, reject) => {
+  return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
       {
         folder,
@@ -70,7 +62,7 @@ export function uploadBufferToCloudinary({
   });
 }
 
-export async function deleteCloudinaryAsset(publicId: string, resourceType: "image" | "video" | "raw" = "image") {
+export async function deleteCloudinaryAsset(publicId, resourceType = "image") {
   if (!publicId) return null;
   assertCloudinaryConfigured();
   return cloudinary.uploader.destroy(publicId, {
