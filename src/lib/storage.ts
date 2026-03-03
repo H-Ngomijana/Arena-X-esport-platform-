@@ -8,6 +8,7 @@ export interface PlatformAnnouncement {
   message: string;
   type: "info" | "warning" | "success" | "error";
   image_url?: string;
+  tournament_id?: string;
   created_at: string;
   created_by: string;
 }
@@ -403,6 +404,11 @@ export function addAnnouncement(item: Omit<PlatformAnnouncement, "id" | "created
   const all = getAnnouncements();
   saveAnnouncements([nextItem, ...all]);
   return nextItem;
+}
+
+export function removeAnnouncement(id: string) {
+  const all = getAnnouncements();
+  saveAnnouncements(all.filter((item) => item.id !== id));
 }
 
 export function getMediaFeed() {

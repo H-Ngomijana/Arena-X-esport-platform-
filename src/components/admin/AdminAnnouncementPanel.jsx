@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { addAnnouncement, getTournaments, saveTournaments } from "@/lib/storage";
+import { useMemo, useState } from "react";
+import { addAnnouncement, getAnnouncements, getTournaments, removeAnnouncement, saveTournaments } from "@/lib/storage";
 import { toast } from "sonner";
 import { uploadMediaFile } from "@/lib/media-upload";
 
@@ -9,6 +9,13 @@ const AdminAnnouncementPanel = ({ tournamentId, onDone }) => {
   const [message, setMessage] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [deletingId, setDeletingId] = useState("");
+
+  const tournament = useMemo(
+    () => getTournaments().find((item) => item.id === tournamentId),
+    [tournamentId, title, message, imageUrl, deletingId]
+  );
+  const announcements = Array.isArray(tournament?.announcements) ? tournament.announcements : [];
 
   const onUploadImage = async (event) => {
     const file = event.target.files?.[0];
@@ -37,7 +44,9 @@ const AdminAnnouncementPanel = ({ tournamentId, onDone }) => {
       return;
     }
 
+    const announcementId = `ann_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
     const entry = {
+      id: announcementId,
       type,
       title: title.trim(),
       message: message.trim(),
@@ -57,6 +66,7 @@ const AdminAnnouncementPanel = ({ tournamentId, onDone }) => {
     const platformType =
       type === "winner" ? "success" : type === "warning" ? "warning" : "info";
     addAnnouncement({
+      tournament_id: tournamentId,
       title: `${entry.title}`,
       message: entry.message,
       type: platformType,
@@ -69,6 +79,56 @@ const AdminAnnouncementPanel = ({ tournamentId, onDone }) => {
     setMessage("");
     setImageUrl("");
     onDone?.();
+  };
+
+  const deleteAnnouncement = (announcement) => {
+    setDeletingId(announcement.id || announcement.created_at || announcement.title);
+    try {
+      const tournaments = getTournaments();
+      saveTournaments(
+        tournaments.map((item) =>
+          item.id === tournamentId
+            ? {
+                ...item,
+                announcements: (item.announcements || []).filter(
+                  (row) =>
+                    (row.id && announcement.id ? row.id !== announcement.id : true) &&
+                    !(
+                      row.title === announcement.title &&
+                      row.message === announcement.message &&
+                      row.created_at === announcement.created_at
+                    )
+                ),
+              }
+            : item
+        )
+      );
+
+      const global = getAnnouncements().filter((row) => {
+        if (row.tournament_id !== tournamentId) return true;
+        if (announcement.id && row.id === announcement.id) return false;
+        if (
+          row.title === announcement.title &&
+          row.message === announcement.message
+        ) {
+          return false;
+        }
+        return true;
+      });
+      // remove individually through helper to preserve storage events
+      const existing = getAnnouncements();
+      existing
+        .filter((row) => !global.find((keep) => keep.id === row.id))
+        .forEach((row) => removeAnnouncement(row.id));
+
+      toast.success("Announcement deleted.");
+      onDone?.();
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to delete announcement.");
+    } finally {
+      setDeletingId("");
+    }
   };
 
   return (
@@ -94,6 +154,33 @@ const AdminAnnouncementPanel = ({ tournamentId, onDone }) => {
       <button onClick={broadcast} className="h-10 w-full rounded bg-amber-500 hover:bg-amber-400 text-black text-xs font-mono">
         BROADCAST
       </button>
+      <div className="rounded-lg border border-white/10 bg-black/20 p-3 space-y-2">
+        <p className="text-[11px] font-mono uppercase tracking-widest text-white/60">Existing announcements</p>
+        {announcements.length === 0 ? (
+          <p className="text-xs text-white/50 font-mono">No announcements yet.</p>
+        ) : (
+          announcements
+            .slice()
+            .reverse()
+            .map((item) => (
+              <div key={item.id || `${item.created_at}_${item.title}`} className="rounded border border-white/10 p-2 bg-white/[0.03]">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-white truncate">{item.title}</p>
+                    <p className="text-[11px] text-white/70 line-clamp-2">{item.message}</p>
+                  </div>
+                  <button
+                    onClick={() => deleteAnnouncement(item)}
+                    disabled={Boolean(deletingId)}
+                    className="h-8 px-2 rounded border border-rose-500/40 text-rose-300 hover:bg-rose-500/20 text-[10px] font-mono disabled:opacity-50"
+                  >
+                    {deletingId === (item.id || item.created_at || item.title) ? "DELETING..." : "DELETE"}
+                  </button>
+                </div>
+              </div>
+            ))
+        )}
+      </div>
     </div>
   );
 };
