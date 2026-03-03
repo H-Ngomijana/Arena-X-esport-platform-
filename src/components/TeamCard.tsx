@@ -3,6 +3,7 @@ import { Users } from "lucide-react";
 import RankBadge from "./RankBadge";
 import type { RankTier } from "@/lib/mock-data";
 import { Link } from "react-router-dom";
+import SafeImage from "@/components/SafeImage";
 
 interface TeamCardProps {
   id: string;
@@ -33,7 +34,7 @@ const TeamCard = ({ id, name, tag, members, rating, rank_tier, tier, wins, losse
       >
         <div className="flex items-center gap-3 mb-3">
           {logo_url ? (
-            <img src={logo_url} alt={name} className="w-12 h-12 rounded-lg object-cover border border-white/10" />
+            <SafeImage src={logo_url} alt={name} className="w-12 h-12 rounded-lg object-cover border border-white/10" />
           ) : (
             <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-primary/20 to-secondary/20 border border-white/10 flex items-center justify-center font-display font-bold text-primary text-lg">
               {tag}

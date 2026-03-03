@@ -7,6 +7,7 @@ import BrandLogo from "@/components/BrandLogo";
 import { toast } from "sonner";
 import { getCurrentUser, getMyJoinRequests, getUnreadMessageNotificationCount, getUnreadNotificationCount, signOutUser } from "@/lib/storage";
 import { useRealtimeRefresh } from "@/components/hooks/useRealtimeRefresh";
+import SafeImage from "@/components/SafeImage";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -210,7 +211,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                   <DropdownMenuTrigger asChild>
                     <button className="flex items-center gap-2 rounded-full border border-white/20 bg-white/5 px-2 py-1.5 hover:bg-white/10">
                       {currentUser.avatar_url ? (
-                        <img src={currentUser.avatar_url} alt={currentUser.name} className="h-8 w-8 rounded-full object-cover" />
+                        <SafeImage src={currentUser.avatar_url} alt={currentUser.name} className="h-8 w-8 rounded-full object-cover" />
                       ) : (
                         <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-xs font-semibold">
                           {currentUser.name?.[0] || "U"}

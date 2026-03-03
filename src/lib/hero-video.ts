@@ -1,3 +1,5 @@
+import { getApiBaseUrl, getApiUrl } from "@/lib/api";
+
 const DB_NAME = "arenax_media_db";
 const DB_VERSION = 1;
 const STORE_NAME = "kv";
@@ -10,18 +12,11 @@ type SaveHeroVideoOptions = {
   maxRetries?: number;
 };
 
-const getSyncBaseUrl = () => {
-  const configured = (import.meta.env.VITE_SYNC_API_BASE_URL || "").trim();
-  if (configured) return configured;
-  if (typeof window !== "undefined" && window.location?.origin) return window.location.origin;
-  return "";
-};
-
 export function getHomeHeroVideoStreamUrl(cacheKey?: string): string {
-  const baseUrl = getSyncBaseUrl();
+  const baseUrl = getApiBaseUrl();
   if (!baseUrl) return "";
   const stamp = cacheKey ? encodeURIComponent(cacheKey) : Date.now().toString();
-  return `${baseUrl}/media/home-hero?v=${stamp}`;
+  return `${getApiUrl("/media/home-hero")}?v=${stamp}`;
 }
 
 function emitUpdate() {
@@ -93,7 +88,6 @@ async function clearLocalFallback() {
 }
 
 function uploadHeroVideoWithRetry(
-  baseUrl: string,
   file: File,
   options: SaveHeroVideoOptions = {}
 ): Promise<void> {
@@ -104,8 +98,9 @@ function uploadHeroVideoWithRetry(
   const runAttempt = (attempt: number): Promise<void> =>
     new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
-      xhr.open("PUT", `${baseUrl}/media/home-hero`);
+      xhr.open("PUT", getApiUrl("/media/home-hero"));
       xhr.timeout = timeoutMs;
+      xhr.withCredentials = true;
       xhr.setRequestHeader("Content-Type", file.type || "video/mp4");
       xhr.setRequestHeader("x-file-name", encodeURIComponent(file.name || "hero-video.mp4"));
 
@@ -161,7 +156,7 @@ function uploadHeroVideoWithRetry(
 }
 
 export async function saveHomeHeroVideo(file: File, options: SaveHeroVideoOptions = {}) {
-  const baseUrl = getSyncBaseUrl();
+  const baseUrl = getApiBaseUrl();
   if (!baseUrl) {
     await saveLocalFallback(file);
     options.onProgress?.(100);
@@ -169,27 +164,18 @@ export async function saveHomeHeroVideo(file: File, options: SaveHeroVideoOption
     return;
   }
 
-  try {
-    await uploadHeroVideoWithRetry(baseUrl, file, options);
-    emitUpdate();
-  } catch (error) {
-    // In synced mode, local fallback creates device-only hero videos.
-    // Fail fast so admin can retry against backend and keep global consistency.
-    throw error instanceof Error ? error : new Error("Hero video upload failed");
-  }
+  await uploadHeroVideoWithRetry(file, options);
+  emitUpdate();
 }
 
 export async function getHomeHeroVideoBlob(): Promise<Blob | null> {
-  const baseUrl = getSyncBaseUrl();
+  const baseUrl = getApiBaseUrl();
   if (!baseUrl) return await getValue<Blob>(HERO_VIDEO_KEY);
 
   try {
-    // Fetch remote video directly so transient meta endpoint errors
-    // do not incorrectly hide an existing remote hero video.
-    const response = await fetch(`${baseUrl}/media/home-hero`, { method: "GET" });
+    const response = await fetch(getApiUrl("/media/home-hero"), { method: "GET", credentials: "include" });
     if (response.ok) return await response.blob();
     if (response.status === 404) {
-      // Explicitly no remote video set.
       return await getValue<Blob>(HERO_VIDEO_KEY);
     }
     return await getValue<Blob>(HERO_VIDEO_KEY);
@@ -199,10 +185,10 @@ export async function getHomeHeroVideoBlob(): Promise<Blob | null> {
 }
 
 export async function hasRemoteHomeHeroVideo(): Promise<boolean> {
-  const baseUrl = getSyncBaseUrl();
+  const baseUrl = getApiBaseUrl();
   if (!baseUrl) return false;
   try {
-    const response = await fetch(`${baseUrl}/media/home-hero-meta`, { method: "GET" });
+    const response = await fetch(getApiUrl("/media/home-hero-meta"), { method: "GET", credentials: "include" });
     if (!response.ok) return false;
     const payload = await response.json();
     return Boolean(payload?.exists);
@@ -217,12 +203,13 @@ export async function getHomeHeroVideoMeta(): Promise<{
   size: number;
   updated_at: string;
   source?: "remote" | "local";
+  url?: string;
 } | null> {
-  const baseUrl = getSyncBaseUrl();
+  const baseUrl = getApiBaseUrl();
   if (!baseUrl) return await getValue(HERO_VIDEO_META_KEY);
 
   try {
-    const response = await fetch(`${baseUrl}/media/home-hero-meta`, { method: "GET" });
+    const response = await fetch(getApiUrl("/media/home-hero-meta"), { method: "GET", credentials: "include" });
     if (response.ok) {
       const payload = await response.json();
       if (payload?.exists) {
@@ -232,6 +219,7 @@ export async function getHomeHeroVideoMeta(): Promise<{
           size: payload.size,
           updated_at: payload.updated_at,
           source: "remote",
+          url: payload.url,
         };
       }
       return null;
@@ -249,10 +237,10 @@ export async function getHomeHeroVideoMeta(): Promise<{
 }
 
 export async function clearHomeHeroVideo() {
-  const baseUrl = getSyncBaseUrl();
+  const baseUrl = getApiBaseUrl();
   if (baseUrl) {
     try {
-      await fetch(`${baseUrl}/media/home-hero`, { method: "DELETE" });
+      await fetch(getApiUrl("/media/home-hero"), { method: "DELETE", credentials: "include" });
     } catch {
       // ignore and clear local fallback
     }

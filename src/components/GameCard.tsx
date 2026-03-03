@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { Users, Trophy } from "lucide-react";
 import { Link } from "react-router-dom";
+import SafeImage from "@/components/SafeImage";
 
 interface GameCardProps {
   id: string;
@@ -27,7 +28,7 @@ const GameCard = ({ id, name, slug, description, player_count, tournament_count,
     >
       {/* Banner Image or Gradient Background */}
       {background_url || banner_url ? (
-        <img
+        <SafeImage
           src={background_url || banner_url}
           alt={name}
           className="absolute inset-0 w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity duration-400"

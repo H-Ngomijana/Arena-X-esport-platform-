@@ -1,3 +1,5 @@
+import { getApiBaseUrl, getApiUrl } from "@/lib/api";
+
 const SYNC_META_KEY = "arenax_sync_meta_v1";
 
 type SyncMeta = Record<string, number>;
@@ -33,13 +35,6 @@ const SYNC_KEYS = [
   "flw_simulated_payments",
 ] as const;
 
-const getBaseUrl = () => {
-  const configured = (import.meta.env.VITE_SYNC_API_BASE_URL || "").trim();
-  if (configured) return configured;
-  if (typeof window !== "undefined" && window.location?.origin) return window.location.origin;
-  return "";
-};
-
 function readMeta(): SyncMeta {
   try {
     const raw = localStorage.getItem(SYNC_META_KEY);
@@ -54,6 +49,7 @@ function writeMeta(meta: SyncMeta) {
 }
 
 export function markKeyDirty(key: string) {
+  if (syncEnabled && !syncHydrated) return;
   const meta = readMeta();
   meta[key] = Date.now();
   writeMeta(meta);
@@ -113,7 +109,7 @@ function normalizeLocalRecordValue(key: string, rawValue: string | null): string
   }
 }
 
-async function pushAll(baseUrl: string, options?: { keepalive?: boolean }) {
+async function pushAll(options?: { keepalive?: boolean }) {
   if (syncEnabled && !syncHydrated) return;
   if (pushInFlight) return;
   pushInFlight = true;
@@ -124,9 +120,10 @@ async function pushAll(baseUrl: string, options?: { keepalive?: boolean }) {
       ts: Number(meta[key] || 0),
       value: normalizeLocalRecordValue(key, localStorage.getItem(key)),
     }));
-    const response = await fetch(`${baseUrl}/sync/merge`, {
+    const response = await fetch(getApiUrl("/sync/merge"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
       keepalive: Boolean(options?.keepalive),
       body: JSON.stringify({ records }),
     });
@@ -140,11 +137,11 @@ async function pushAll(baseUrl: string, options?: { keepalive?: boolean }) {
   }
 }
 
-async function pullAll(baseUrl: string) {
+async function pullAll() {
   if (pullInFlight) return;
   pullInFlight = true;
   try {
-    const response = await fetch(`${baseUrl}/sync/snapshot`);
+    const response = await fetch(getApiUrl("/sync/snapshot"), { credentials: "include" });
     if (!response.ok) return;
     const payload = await response.json();
     const records: SyncRecord[] = Array.isArray(payload?.records) ? payload.records : [];
@@ -157,7 +154,6 @@ async function pullAll(baseUrl: string) {
       const remoteTs = Number(record.ts || 0);
       const localWriteIsRecent = localTs > 0 && Date.now() - localTs < LOCAL_WRITE_PROTECT_MS;
       if (localWriteIsRecent && remoteTs >= localTs) {
-        // Protect recent local/admin actions from being rolled back by delayed remote snapshots.
         continue;
       }
       if (remoteTs <= localTs) continue;
@@ -190,41 +186,38 @@ export function startRemoteSync() {
   if (syncStarted) return;
   syncStarted = true;
 
-  const baseUrl = getBaseUrl();
+  const baseUrl = getApiBaseUrl();
   if (!baseUrl) return;
   syncEnabled = true;
   syncHydrated = false;
 
   Promise.resolve()
     .then(async () => {
-      await pullAll(baseUrl);
+      await pullAll();
       syncHydrated = true;
-      await pushAll(baseUrl);
+      await pushAll();
     })
     .catch(() => {
       syncHydrated = true;
     });
 
-  const pushTimer = window.setInterval(() => pushAll(baseUrl), PUSH_INTERVAL_MS);
-  const pullTimer = window.setInterval(() => pullAll(baseUrl), PULL_INTERVAL_MS);
+  const pushTimer = window.setInterval(() => pushAll(), PUSH_INTERVAL_MS);
+  const pullTimer = window.setInterval(() => pullAll(), PULL_INTERVAL_MS);
 
   const onOnline = () => {
-    pullAll(baseUrl);
-    pushAll(baseUrl);
+    pullAll();
+    pushAll();
   };
   const onDataChanged = (event: Event) => {
     const detail = (event as CustomEvent<{ key?: string }>).detail;
     const key = detail?.key || "";
-    // Push quickly after local writes to reduce conflict window.
-    pushAll(baseUrl);
-    // For chat/profile updates, pull shortly after push to minimize cross-device delay.
+    pushAll();
     if (key === "arenax_direct_messages" || key === "arenax_user_accounts") {
-      window.setTimeout(() => pullAll(baseUrl), 150);
+      window.setTimeout(() => pullAll(), 150);
     }
   };
   const onPageHide = () => {
-    // Flush latest local edits (avatars, account updates, chats) before tab closes.
-    pushAll(baseUrl, { keepalive: true });
+    pushAll({ keepalive: true });
   };
   window.addEventListener("online", onOnline);
   window.addEventListener("arenax:data-changed", onDataChanged as EventListener);
