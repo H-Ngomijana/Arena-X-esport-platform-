@@ -62,6 +62,13 @@ const ReportChat = ({ tournamentId, matchId }) => {
           Attach Evidence (optional)
           <input type="file" accept="image/*" multiple className="hidden" onChange={handleEvidence} />
         </label>
+        {evidence.length > 0 ? (
+          <div className="grid grid-cols-3 gap-2">
+            {evidence.map((src, idx) => (
+              <img key={`${src}_${idx}`} src={src} alt={`Evidence ${idx + 1}`} className="w-full h-16 rounded object-cover border border-white/15" />
+            ))}
+          </div>
+        ) : null}
         <button
           onClick={handleSend}
           className="h-11 px-4 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs tracking-widest"

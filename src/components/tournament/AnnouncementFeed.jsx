@@ -21,9 +21,17 @@ const AnnouncementFeed = ({ items = [] }) => {
           items.map((item, idx) => (
             <div key={`${item.created_at}_${idx}`} className={`border-l-4 ${typeStyles[item.type] || "border-cyan-400"} bg-black/20 p-3 rounded-r`}>
               <div className="flex items-start justify-between gap-2">
-                <p className="text-sm">{item.message || item.title}</p>
+                <div className="space-y-1 min-w-0">
+                  {item.title ? <p className="text-sm font-semibold">{item.title}</p> : null}
+                  <p className="text-sm">{item.message || item.title}</p>
+                </div>
                 <span className="text-[10px] text-white/50 whitespace-nowrap">{timeAgo(item.created_at)}</span>
               </div>
+              {item.image_url ? (
+                <div className="mt-2 rounded border border-white/10 overflow-hidden">
+                  <img src={item.image_url} alt={item.title || "announcement"} className="w-full h-28 object-cover" />
+                </div>
+              ) : null}
             </div>
           ))
         ) : (

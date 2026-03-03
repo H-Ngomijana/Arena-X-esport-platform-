@@ -70,8 +70,19 @@ const Messages = () => {
                 onClick={() => setSearchParams({ with: user.email })}
                 className={`w-full text-left p-3 rounded-lg border ${selectedEmail === user.email ? "border-fuchsia-400/50 bg-fuchsia-500/10" : "border-white/10 bg-white/[0.02]"}`}
               >
-                <p className="font-semibold">{user.full_name}</p>
-                <p className="text-xs text-white/60">{user.handle ? `@${user.handle} • ` : ""}{user.email}</p>
+                <div className="flex items-center gap-2">
+                  {user.avatar_url ? (
+                    <img src={user.avatar_url} alt={user.full_name} className="w-8 h-8 rounded-full object-cover border border-white/20" />
+                  ) : (
+                    <span className="w-8 h-8 rounded-full bg-white/10 inline-flex items-center justify-center text-xs">
+                      {(user.full_name || "U")[0]}
+                    </span>
+                  )}
+                  <div>
+                    <p className="font-semibold">{user.full_name}</p>
+                    <p className="text-xs text-white/60">{user.handle ? `@${user.handle} • ` : ""}{user.email}</p>
+                  </div>
+                </div>
               </button>
             ))}
           </div>

@@ -4,7 +4,7 @@ import RankBadge from "@/components/RankBadge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { getSoloProfiles, getTeams } from "@/lib/storage";
+import { getAccounts, getSoloProfiles, getTeams } from "@/lib/storage";
 import { useRealtimeRefresh } from "@/components/hooks/useRealtimeRefresh";
 
 const Rankings = () => {
@@ -14,6 +14,9 @@ const Rankings = () => {
   });
   const [searchParams] = useSearchParams();
   const defaultTab = searchParams.get("type") === "solo" ? "solo" : "team";
+  const accountsByEmail = Object.fromEntries(
+    getAccounts().map((account) => [account.email.toLowerCase(), account])
+  );
 
   const teamRankings = getTeams()
     .slice()
@@ -27,6 +30,7 @@ const Rankings = () => {
       wins: Number(team.wins || 0),
       losses: Number(team.losses || 0),
       streak: 0,
+      logo_url: team.logo_url || "",
     }));
 
   const soloRankings = getSoloProfiles()
@@ -40,6 +44,10 @@ const Rankings = () => {
       wins: Number(profile.stats?.wins || 0),
       losses: Number(profile.stats?.losses || 0),
       streak: 0,
+      avatar_url:
+        accountsByEmail[(profile.user_email || "").toLowerCase()]?.avatar_url ||
+        profile.avatar_url ||
+        "",
     }));
 
   return (
@@ -75,7 +83,18 @@ const Rankings = () => {
                         )}
                       >
                         <td className="px-4 py-3 font-display font-bold text-lg">#{p.rank}</td>
-                        <td className="px-4 py-3 font-semibold">{p.name}</td>
+                        <td className="px-4 py-3 font-semibold">
+                          <span className="inline-flex items-center gap-2">
+                            {p.logo_url ? (
+                              <img src={p.logo_url} alt={p.name} className="w-6 h-6 rounded object-cover border border-white/20" />
+                            ) : (
+                              <span className="w-6 h-6 rounded bg-white/10 inline-flex items-center justify-center text-[10px]">
+                                {(p.name || "T")[0]}
+                              </span>
+                            )}
+                            {p.name}
+                          </span>
+                        </td>
                         <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{p.game}</td>
                         <td className="px-4 py-3 font-mono font-semibold">{p.rating}</td>
                         <td className="px-4 py-3"><RankBadge tier={p.tier as any} size="sm" /></td>
@@ -108,7 +127,18 @@ const Rankings = () => {
                       {soloRankings.map((p) => (
                         <tr key={`${p.rank}-${p.name}`} className="border-b border-white/[0.04] hover:bg-white/[0.03] transition-colors">
                           <td className="px-4 py-3 font-display font-bold text-lg">#{p.rank}</td>
-                          <td className="px-4 py-3 font-semibold">{p.name}</td>
+                          <td className="px-4 py-3 font-semibold">
+                            <span className="inline-flex items-center gap-2">
+                              {p.avatar_url ? (
+                                <img src={p.avatar_url} alt={p.name} className="w-6 h-6 rounded-full object-cover border border-white/20" />
+                              ) : (
+                                <span className="w-6 h-6 rounded-full bg-white/10 inline-flex items-center justify-center text-[10px]">
+                                  {(p.name || "U")[0]}
+                                </span>
+                              )}
+                              {p.name}
+                            </span>
+                          </td>
                           <td className="px-4 py-3 font-mono font-semibold text-purple-400">{p.rating}</td>
                           <td className="px-4 py-3"><RankBadge tier={p.tier as any} size="sm" /></td>
                           <td className="px-4 py-3 font-mono text-xs">
@@ -135,4 +165,3 @@ const Rankings = () => {
 };
 
 export default Rankings;
-

@@ -1,9 +1,9 @@
 import { motion } from "framer-motion";
 import { Megaphone } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { getAnnouncements } from "@/lib/storage";
+import { getAccountByEmail, getAnnouncements } from "@/lib/storage";
 
-const badgeStyles: Record<string, string> = {
+const badgeStyles = {
   info: "bg-blue-500/20 text-blue-300 border-blue-500/30",
   warning: "bg-amber-500/20 text-amber-300 border-amber-500/30",
   success: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
@@ -29,28 +29,47 @@ const Announcements = () => {
             </Card>
           )}
 
-          {announcements.map((item, index) => (
-            <motion.div
-              key={item.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.04 }}
-              className="rounded-xl border border-white/10 bg-white/[0.02] p-5"
-            >
-              <div className="flex items-center justify-between gap-3 mb-3">
-                <h2 className="text-lg font-semibold">{item.title}</h2>
-                <span
-                  className={`px-2.5 py-1 rounded-full text-[11px] uppercase border ${badgeStyles[item.type] || badgeStyles.info}`}
-                >
-                  {item.type}
-                </span>
-              </div>
-              <p className="text-sm text-muted-foreground mb-3 whitespace-pre-wrap">{item.message}</p>
-              <p className="text-xs text-muted-foreground">
-                {new Date(item.created_at).toLocaleString()} · {item.created_by}
-              </p>
-            </motion.div>
-          ))}
+          {announcements.map((item, index) => {
+            const account = getAccountByEmail(item.created_by);
+            return (
+              <motion.div
+                key={item.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.04 }}
+                className="rounded-xl border border-white/10 bg-white/[0.02] p-5"
+              >
+                <div className="flex items-center justify-between gap-3 mb-3">
+                  <h2 className="text-lg font-semibold">{item.title}</h2>
+                  <span
+                    className={`px-2.5 py-1 rounded-full text-[11px] uppercase border ${
+                      badgeStyles[item.type] || badgeStyles.info
+                    }`}
+                  >
+                    {item.type}
+                  </span>
+                </div>
+                <p className="text-sm text-muted-foreground mb-3 whitespace-pre-wrap">{item.message}</p>
+                {item.image_url ? (
+                  <div className="mb-3 rounded-lg overflow-hidden border border-white/10">
+                    <img src={item.image_url} alt={item.title} className="w-full h-52 object-cover" />
+                  </div>
+                ) : null}
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  {account?.avatar_url ? (
+                    <img src={account.avatar_url} alt={account.full_name} className="w-5 h-5 rounded-full object-cover border border-white/20" />
+                  ) : (
+                    <span className="w-5 h-5 rounded-full bg-white/10 inline-flex items-center justify-center text-[10px]">
+                      {(item.created_by || "A")[0]?.toUpperCase()}
+                    </span>
+                  )}
+                  <span>
+                    {new Date(item.created_at).toLocaleString()} · {item.created_by}
+                  </span>
+                </div>
+              </motion.div>
+            );
+          })}
         </div>
       </div>
     </div>

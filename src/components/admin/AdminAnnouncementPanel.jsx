@@ -1,11 +1,35 @@
 import { useState } from "react";
 import { addAnnouncement, getTournaments, saveTournaments } from "@/lib/storage";
 import { toast } from "sonner";
+import { uploadMediaFile } from "@/lib/media-upload";
 
 const AdminAnnouncementPanel = ({ tournamentId, onDone }) => {
   const [type, setType] = useState("info");
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [uploadingImage, setUploadingImage] = useState(false);
+
+  const onUploadImage = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please upload an image file.");
+      return;
+    }
+    setUploadingImage(true);
+    try {
+      const url = await uploadMediaFile(file, "announcements");
+      setImageUrl(url);
+      toast.success("Announcement image uploaded.");
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to upload announcement image.");
+    } finally {
+      setUploadingImage(false);
+      event.target.value = "";
+    }
+  };
 
   const broadcast = () => {
     if (!title.trim() || !message.trim()) {
@@ -17,6 +41,7 @@ const AdminAnnouncementPanel = ({ tournamentId, onDone }) => {
       type,
       title: title.trim(),
       message: message.trim(),
+      image_url: imageUrl || "",
       created_at: new Date().toISOString(),
     };
 
@@ -35,12 +60,14 @@ const AdminAnnouncementPanel = ({ tournamentId, onDone }) => {
       title: `${entry.title}`,
       message: entry.message,
       type: platformType,
+      image_url: entry.image_url || "",
       created_by: "admin@arenax.gg",
     });
 
     toast.success("Announcement broadcasted");
     setTitle("");
     setMessage("");
+    setImageUrl("");
     onDone?.();
   };
 
@@ -55,6 +82,15 @@ const AdminAnnouncementPanel = ({ tournamentId, onDone }) => {
       </select>
       <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title" className="w-full h-10 rounded bg-white/5 border border-white/10 text-white px-3 text-sm font-mono" />
       <textarea value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Message" className="w-full min-h-24 rounded bg-white/5 border border-white/10 text-white px-3 py-2 text-sm font-mono" />
+      <label className="flex h-11 items-center justify-center rounded border border-dashed border-white/20 bg-white/5 text-xs text-white/70 font-mono cursor-pointer hover:bg-white/10">
+        {uploadingImage ? "UPLOADING..." : "UPLOAD ANNOUNCEMENT IMAGE (optional)"}
+        <input type="file" accept="image/*" className="hidden" onChange={onUploadImage} disabled={uploadingImage} />
+      </label>
+      {imageUrl ? (
+        <div className="rounded border border-white/10 overflow-hidden bg-black/20">
+          <img src={imageUrl} alt="announcement" className="w-full h-28 object-cover" />
+        </div>
+      ) : null}
       <button onClick={broadcast} className="h-10 w-full rounded bg-amber-500 hover:bg-amber-400 text-black text-xs font-mono">
         BROADCAST
       </button>

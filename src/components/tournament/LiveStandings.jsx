@@ -27,7 +27,14 @@ const LiveStandings = ({ topPlayers = [], topTeams = [] }) => {
         <div className="space-y-2">
           {topTeams.map((team, index) => (
             <div key={team.id || `${team.name}_${index}`} className="flex items-center justify-between text-sm">
-              <span>
+              <span className="inline-flex items-center gap-2">
+                {team.logo_url ? (
+                  <img src={team.logo_url} alt={team.name} className="w-6 h-6 rounded object-cover border border-white/20" />
+                ) : (
+                  <span className="w-6 h-6 rounded bg-white/10 inline-flex items-center justify-center text-[10px]">
+                    {(team.name || "T")[0]}
+                  </span>
+                )}
                 #{index + 1} {team.name}
               </span>
               <span className="text-white/60">

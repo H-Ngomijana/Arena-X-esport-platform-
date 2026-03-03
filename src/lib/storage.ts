@@ -7,6 +7,7 @@ export interface PlatformAnnouncement {
   title: string;
   message: string;
   type: "info" | "warning" | "success" | "error";
+  image_url?: string;
   created_at: string;
   created_by: string;
 }
@@ -57,6 +58,7 @@ export interface TournamentAnnouncement {
   message: string;
   created_at: string;
   type: "info" | "warning" | "match" | "winner";
+  image_url?: string;
 }
 
 export interface TournamentPrizes {
@@ -132,6 +134,8 @@ export interface DisputeReport {
   evidence_urls: string[];
   status: "open" | "reviewing" | "resolved" | "dismissed";
   admin_response?: string;
+  resolved_by?: string;
+  resolved_at?: string;
 }
 
 export interface UserNotification {
@@ -284,7 +288,12 @@ export function getTournaments() {
       payment_recipient_number: item.payment_recipient_number || "0794417555",
       payment_description: item.payment_description || "ArenaX Tournament Entry Fee",
       match_start_time: startAt,
-      announcements: Array.isArray(item.announcements) ? item.announcements : [],
+      announcements: Array.isArray(item.announcements)
+        ? item.announcements.map((announcement: any) => ({
+            ...announcement,
+            image_url: resolveMediaUrl(announcement?.image_url || ""),
+          }))
+        : [],
       prizes: item.prizes || {
         first: item.prize_pool ? `${item.prize_pool} RWF` : "500,000 RWF",
         second: "200,000 RWF",
@@ -375,7 +384,10 @@ export function createMatch(payload: any) {
 }
 
 export function getAnnouncements() {
-  return safeRead<PlatformAnnouncement[]>(KEYS.announcements, []);
+  return safeRead<PlatformAnnouncement[]>(KEYS.announcements, []).map((item) => ({
+    ...item,
+    image_url: resolveMediaUrl(item.image_url || ""),
+  }));
 }
 
 export function saveAnnouncements(items: PlatformAnnouncement[]) {
@@ -559,6 +571,13 @@ export function createDisputeReport(payload: Omit<DisputeReport, "id" | "created
   const all = getDisputeReports();
   safeWrite(KEYS.disputeReports, [entry, ...all]);
   return entry;
+}
+
+export function updateDisputeReport(id: string, updates: Partial<DisputeReport>) {
+  const all = getDisputeReports();
+  const next = all.map((item) => (item.id === id ? { ...item, ...updates } : item));
+  safeWrite(KEYS.disputeReports, next);
+  return next.find((item) => item.id === id);
 }
 
 export function getNotifications() {

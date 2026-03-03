@@ -21,10 +21,15 @@ const CommandTab = ({
     .sort((a, b) => new Date(a.scheduled_time || a.scheduled_at).getTime() - new Date(b.scheduled_time || b.scheduled_at).getTime());
   const upcoming = (tournament.next_matches_override?.length ? tournament.next_matches_override : scheduled) || [];
 
+  const myStatus = myMatch?.status;
+  const canSubmitResults =
+    myMatch &&
+    (myStatus === "live" || myStatus === "awaiting_results" || myStatus === "completed");
+
   return (
     <div className="space-y-4">
       {myMatch && !isMyMatchLive && <ReadyMatchCard match={myMatch} currentUser={currentUser} onRefresh={onRefresh} />}
-      {myMatch && isMyMatchLive && <EvidenceSubmitForm match={myMatch} currentUser={currentUser} onRefresh={onRefresh} />}
+      {canSubmitResults ? <EvidenceSubmitForm match={myMatch} currentUser={currentUser} onRefresh={onRefresh} /> : null}
 
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="rounded-2xl bg-[#0a0a12] border border-white/10 p-4">

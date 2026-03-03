@@ -83,7 +83,7 @@ const EvidenceSubmitForm = ({ match, currentUser, onRefresh }) => {
         onClick={submitEvidence}
         className="h-12 px-6 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-black font-bold"
       >
-        SUBMIT EVIDENCE
+        SUBMIT MATCH RESULTS
       </button>
     </div>
   );
