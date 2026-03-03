@@ -5,10 +5,11 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { clearMessageNotificationsForConversation, getConversation, getCurrentUser, searchAccounts, sendDirectMessage } from "@/lib/storage";
 import { useRealtimeRefresh } from "@/components/hooks/useRealtimeRefresh";
+import { requestRemoteSyncNow } from "@/lib/remote-sync";
 import { toast } from "sonner";
 
 const Messages = () => {
-  useRealtimeRefresh({ keys: ["arenax_direct_messages", "arenax_user_accounts"], intervalMs: 500 });
+  useRealtimeRefresh({ keys: ["arenax_direct_messages", "arenax_user_accounts"], intervalMs: 250 });
   const currentUser = useMemo(() => getCurrentUser(), []);
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedEmail = searchParams.get("with") || "";
@@ -23,6 +24,17 @@ const Messages = () => {
     if (!selectedEmail || currentUser.is_guest) return;
     clearMessageNotificationsForConversation(currentUser.email, selectedEmail);
   }, [selectedEmail, currentUser.email, currentUser.is_guest]);
+
+  useEffect(() => {
+    if (currentUser.is_guest) return;
+
+    requestRemoteSyncNow({ pull: true, push: false });
+    const timer = window.setInterval(() => {
+      requestRemoteSyncNow({ pull: true, push: false });
+    }, 300);
+
+    return () => window.clearInterval(timer);
+  }, [currentUser.is_guest, selectedEmail]);
 
   if (currentUser.is_guest) {
     return (
@@ -47,6 +59,7 @@ const Messages = () => {
         message,
       });
       setMessage("");
+      requestRemoteSyncNow({ push: true, pull: true });
     } catch (error: any) {
       toast.error(error?.message || "Could not send message.");
     }

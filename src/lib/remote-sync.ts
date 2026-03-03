@@ -60,6 +60,8 @@ let pushInFlight = false;
 let pullInFlight = false;
 let syncEnabled = false;
 let syncHydrated = false;
+let manualSyncInFlight = false;
+let lastManualSyncAt = 0;
 const LOCAL_WRITE_PROTECT_MS = 2 * 60 * 1000;
 const MAX_RECORD_BYTES = 2 * 1024 * 1024;
 const PUSH_INTERVAL_MS = 800;
@@ -233,4 +235,22 @@ export function startRemoteSync() {
     syncHydrated = false;
     syncStarted = false;
   };
+}
+
+export async function requestRemoteSyncNow(options: { push?: boolean; pull?: boolean } = {}) {
+  const baseUrl = getApiBaseUrl();
+  if (!baseUrl) return;
+  if (!syncEnabled) return;
+
+  const now = Date.now();
+  if (manualSyncInFlight || now - lastManualSyncAt < 180) return;
+  manualSyncInFlight = true;
+  lastManualSyncAt = now;
+
+  try {
+    if (options.push !== false) await pushAll();
+    if (options.pull !== false) await pullAll();
+  } finally {
+    manualSyncInFlight = false;
+  }
 }
