@@ -100,6 +100,7 @@ const App = () => {
                         <Route path="/TournamentLive" element={<TournamentLive />} />
                         <Route path="/tournament-live" element={<TournamentLive />} />
                         <Route path="/auth" element={<Auth />} />
+                        <Route path="/reset-password" element={<Auth />} />
                     <Route
                       path="*"
                       element={

@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import fs from "fs";
+import crypto from "crypto";
 import path from "path";
 import { fileURLToPath } from "url";
 import {
@@ -8,6 +9,7 @@ import {
   uploadBufferToCloudinary,
   deleteCloudinaryAsset,
 } from "./cloudinary.js";
+import { sendPasswordResetEmail } from "./mailer.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -17,6 +19,8 @@ const DB_FILE_CONFIG = process.env.SYNC_DB_FILE || path.join(__dirname, "sync-st
 const FRONTEND_URL = (process.env.FRONTEND_URL || "").trim();
 const DIST_DIR = path.resolve(__dirname, "../dist");
 const HERO_META_KEY = "home_hero_media_meta";
+const ACCOUNTS_KEY = "arenax_user_accounts";
+const RESET_TOKEN_TTL_MS = Number(process.env.RESET_TOKEN_TTL_MINUTES || 30) * 60 * 1000;
 
 let DB_FILE = DB_FILE_CONFIG;
 
@@ -115,6 +119,33 @@ function clearHeroMeta() {
   writeDb(db);
 }
 
+function readAccounts() {
+  const db = readDb();
+  const raw = db.records?.[ACCOUNTS_KEY]?.value;
+  if (!raw) return [];
+  try {
+    const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeAccounts(accounts) {
+  const db = readDb();
+  db.records[ACCOUNTS_KEY] = {
+    ts: Date.now(),
+    value: JSON.stringify(accounts),
+  };
+  writeDb(db);
+}
+
+function createResetToken() {
+  const rawToken = crypto.randomBytes(32).toString("hex");
+  const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+  return { rawToken, tokenHash };
+}
+
 app.get("/health", (_req, res) => {
   res.json({
     ok: true,
@@ -124,6 +155,90 @@ app.get("/health", (_req, res) => {
     cloudinary_enabled: cloudinaryEnabled,
     frontend_url: FRONTEND_URL || null,
   });
+});
+
+app.post("/auth/forgot-password", async (req, res) => {
+  const normalizedEmail = String(req.body?.email || "").trim().toLowerCase();
+  const genericMessage = "If this email is registered, a reset link has been sent.";
+  if (!normalizedEmail) {
+    return res.json({ ok: true, message: genericMessage });
+  }
+
+  try {
+    const accounts = readAccounts();
+    const index = accounts.findIndex(
+      (item) => String(item?.email || "").trim().toLowerCase() === normalizedEmail
+    );
+
+    if (index >= 0) {
+      const { rawToken, tokenHash } = createResetToken();
+      const account = accounts[index];
+      accounts[index] = {
+        ...account,
+        password_reset_token: tokenHash,
+        password_reset_expires: new Date(Date.now() + RESET_TOKEN_TTL_MS).toISOString(),
+      };
+      writeAccounts(accounts);
+
+      const frontendBase = FRONTEND_URL || "http://localhost:8080";
+      const resetUrl = `${frontendBase}/reset-password?token=${encodeURIComponent(
+        rawToken
+      )}&id=${encodeURIComponent(String(account.id || ""))}`;
+
+      await sendPasswordResetEmail({
+        to: normalizedEmail,
+        resetUrl,
+      });
+    }
+
+    return res.json({ ok: true, message: genericMessage });
+  } catch (error) {
+    console.error("[auth/forgot-password]", error);
+    return res.json({ ok: true, message: genericMessage });
+  }
+});
+
+app.post("/auth/reset-password", (req, res) => {
+  const userId = String(req.body?.userId || "").trim();
+  const rawToken = String(req.body?.token || "").trim();
+  const newPassword = String(req.body?.password || "");
+
+  if (!userId || !rawToken || !newPassword || newPassword.length < 6) {
+    return res.status(400).json({ ok: false, error: "Invalid reset payload." });
+  }
+
+  const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+
+  try {
+    const accounts = readAccounts();
+    const index = accounts.findIndex((item) => String(item?.id || "") === userId);
+    if (index < 0) {
+      return res.status(400).json({ ok: false, error: "Invalid or expired token." });
+    }
+
+    const account = accounts[index];
+    const expiresAt = new Date(account?.password_reset_expires || 0).getTime();
+    const tokenValid = account?.password_reset_token === tokenHash;
+    const notExpired = Number.isFinite(expiresAt) && expiresAt > Date.now();
+
+    if (!tokenValid || !notExpired) {
+      return res.status(400).json({ ok: false, error: "Invalid or expired token." });
+    }
+
+    accounts[index] = {
+      ...account,
+      password: newPassword,
+      password_reset_token: "",
+      password_reset_expires: "",
+      session_revoked_at: new Date().toISOString(),
+    };
+    writeAccounts(accounts);
+
+    return res.json({ ok: true, message: "Password has been reset successfully." });
+  } catch (error) {
+    console.error("[auth/reset-password]", error);
+    return res.status(500).json({ ok: false, error: "Could not reset password." });
+  }
 });
 
 app.get("/sync/snapshot", (_req, res) => {

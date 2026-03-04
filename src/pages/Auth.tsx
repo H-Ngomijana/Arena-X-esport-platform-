@@ -1,7 +1,8 @@
 import { ChangeEvent, FormEvent, useMemo, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, KeyRound, UserRound } from "lucide-react";
 import { uploadMediaFile } from "@/lib/media-upload";
+import { requestPasswordResetEmail, submitPasswordReset } from "@/lib/auth-api";
 import {
   markEmailVerified,
   requestPasswordReset,
@@ -16,13 +17,15 @@ type Mode = "signup" | "login" | "forgot" | "reset";
 
 const Auth = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const redirect = useMemo(() => searchParams.get("redirect") || "/dashboard", [searchParams]);
   const mode = useMemo<Mode>(() => {
+    if (location.pathname === "/reset-password") return "reset";
     const raw = (searchParams.get("mode") || "login").toLowerCase();
     if (raw === "signup" || raw === "forgot" || raw === "reset") return raw;
     return "login";
-  }, [searchParams]);
+  }, [location.pathname, searchParams]);
 
   const rememberedEmail = localStorage.getItem("arenax_remember_email") || "";
 
@@ -41,7 +44,7 @@ const Auth = () => {
   const [resetEmail, setResetEmail] = useState("");
   const [resetNewPassword, setResetNewPassword] = useState("");
   const [resetConfirmPassword, setResetConfirmPassword] = useState("");
-  const resetEmailFromLink = searchParams.get("email") || "";
+  const resetUserIdFromLink = searchParams.get("id") || "";
   const resetTokenFromLink = searchParams.get("token") || "";
 
   const handleAvatarUpload = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -115,28 +118,44 @@ const Auth = () => {
     navigate(redirect);
   };
 
-  const handleForgot = (event: FormEvent) => {
+  const handleForgot = async (event: FormEvent) => {
     event.preventDefault();
     try {
-      requestPasswordReset(resetEmail);
+      await requestPasswordResetEmail(resetEmail);
       toast.success("Verification email sent. Check your email and open the reset link.");
     } catch (error: any) {
-      toast.error(error?.message || "Could not send reset message.");
+      try {
+        requestPasswordReset(resetEmail);
+        toast.success("Verification email sent. Check your email and open the reset link.");
+      } catch (fallbackError: any) {
+        toast.error(fallbackError?.message || error?.message || "Could not send reset message.");
+      }
     }
   };
 
-  const handleResetFromEmailLink = (event: FormEvent) => {
+  const handleResetFromEmailLink = async (event: FormEvent) => {
     event.preventDefault();
     if (resetNewPassword !== resetConfirmPassword) {
       toast.error("Passwords do not match.");
       return;
     }
     try {
-      resetPasswordWithToken(resetEmailFromLink, resetTokenFromLink, resetNewPassword);
+      await submitPasswordReset({
+        token: resetTokenFromLink,
+        userId: resetUserIdFromLink,
+        password: resetNewPassword,
+      });
       toast.success("Password reset complete.");
       navigate(`/auth?mode=login&redirect=${encodeURIComponent(redirect)}`);
     } catch (error: any) {
-      toast.error(error?.message || "Reset failed.");
+      try {
+        const resetEmailFromLink = searchParams.get("email") || "";
+        resetPasswordWithToken(resetEmailFromLink, resetTokenFromLink, resetNewPassword);
+        toast.success("Password reset complete.");
+        navigate(`/auth?mode=login&redirect=${encodeURIComponent(redirect)}`);
+      } catch (fallbackError: any) {
+        toast.error(fallbackError?.message || error?.message || "Reset failed.");
+      }
     }
   };
 
