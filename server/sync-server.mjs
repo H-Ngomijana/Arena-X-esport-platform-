@@ -9,7 +9,7 @@ import {
   uploadBufferToCloudinary,
   deleteCloudinaryAsset,
 } from "./cloudinary.js";
-import { sendPasswordResetEmail } from "./mailer.js";
+import { isMailerEnabled, sendPasswordResetEmail } from "./mailer.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -221,6 +221,12 @@ app.get("/users/search", (req, res) => {
 app.post("/auth/forgot-password", async (req, res) => {
   const normalizedEmail = String(req.body?.email || "").trim().toLowerCase();
   const genericMessage = "If this email is registered, a reset link has been sent.";
+  if (!isMailerEnabled) {
+    return res.status(503).json({
+      ok: false,
+      error: "Email service is not configured. Contact support.",
+    });
+  }
   if (!normalizedEmail) {
     return res.json({ ok: true, message: genericMessage });
   }
@@ -255,7 +261,10 @@ app.post("/auth/forgot-password", async (req, res) => {
     return res.json({ ok: true, message: genericMessage });
   } catch (error) {
     console.error("[auth/forgot-password]", error);
-    return res.json({ ok: true, message: genericMessage });
+    return res.status(500).json({
+      ok: false,
+      error: "Could not send reset email right now. Please try again.",
+    });
   }
 });
 

@@ -4,7 +4,6 @@ import { ArrowLeft, KeyRound, UserRound } from "lucide-react";
 import { uploadMediaFile } from "@/lib/media-upload";
 import { requestPasswordResetEmail, submitPasswordReset } from "@/lib/auth-api";
 import {
-  requestPasswordReset,
   resetPasswordWithToken,
   signInWithEmail,
   signInWithGoogle,
@@ -42,6 +41,7 @@ const Auth = () => {
   const [resetEmail, setResetEmail] = useState("");
   const [resetNewPassword, setResetNewPassword] = useState("");
   const [resetConfirmPassword, setResetConfirmPassword] = useState("");
+  const [sendingResetEmail, setSendingResetEmail] = useState(false);
   const resetUserIdFromLink = searchParams.get("id") || "";
   const resetTokenFromLink = searchParams.get("token") || "";
 
@@ -111,16 +111,14 @@ const Auth = () => {
 
   const handleForgot = async (event: FormEvent) => {
     event.preventDefault();
+    setSendingResetEmail(true);
     try {
       await requestPasswordResetEmail(resetEmail);
-      toast.success("Verification email sent. Check your email and open the reset link.");
+      toast.success("Reset link sent. Check your email.");
     } catch (error: any) {
-      try {
-        requestPasswordReset(resetEmail);
-        toast.success("Verification email sent. Check your email and open the reset link.");
-      } catch (fallbackError: any) {
-        toast.error(fallbackError?.message || error?.message || "Could not send reset message.");
-      }
+      toast.error(error?.message || "Could not send reset email.");
+    } finally {
+      setSendingResetEmail(false);
     }
   };
 
@@ -205,12 +203,16 @@ const Auth = () => {
           <>
             <form className="space-y-3" onSubmit={handleForgot}>
               <input className="w-full h-11 rounded-xl border border-white/20 bg-white/5 px-4 placeholder:text-white/40 focus:outline-none focus:border-cyan-300/60" placeholder="Registered email" type="email" value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} required />
-              <button type="submit" className="w-full h-12 rounded-xl bg-gradient-to-r from-fuchsia-500 to-rose-500 font-bold uppercase tracking-wide">
-                Verify Email
+              <button
+                type="submit"
+                disabled={sendingResetEmail}
+                className="w-full h-12 rounded-xl bg-gradient-to-r from-fuchsia-500 to-rose-500 font-bold uppercase tracking-wide disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {sendingResetEmail ? "Sending..." : "Send Reset Link"}
               </button>
             </form>
             <p className="mt-4 text-sm text-white/65">
-              After verification, open the reset link from your email and set the new password.
+              Open the reset link from your email and set your new password.
             </p>
             <p className="text-center text-sm text-white/60 pt-3">
               Back to

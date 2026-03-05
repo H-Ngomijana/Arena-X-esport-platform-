@@ -8,6 +8,7 @@ const SMTP_PASS = (process.env.SMTP_PASS || "").trim();
 const SMTP_FROM = (process.env.SMTP_FROM || SMTP_USER || "no-reply@arenax.gg").trim();
 
 const mailerEnabled = Boolean(SMTP_HOST && SMTP_PORT && SMTP_USER && SMTP_PASS);
+export const isMailerEnabled = mailerEnabled;
 
 const transporter = mailerEnabled
   ? nodemailer.createTransport({
@@ -41,4 +42,3 @@ export async function sendPasswordResetEmail({ to, resetUrl }) {
 
   return { sent: true };
 }
-
