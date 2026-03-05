@@ -25,6 +25,8 @@ const SYNC_KEYS = [
   "arenax_user_accounts",
   "arenax_password_reset_requests",
   "arenax_direct_messages",
+  "arenax_user_presence",
+  "arenax_chat_typing_state",
   "arenax_team_invites",
   "arenax_match_chat_messages",
   "arenax_system_settings",

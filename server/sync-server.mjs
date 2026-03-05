@@ -20,6 +20,7 @@ const FRONTEND_URL = (process.env.FRONTEND_URL || "").trim();
 const DIST_DIR = path.resolve(__dirname, "../dist");
 const HERO_META_KEY = "home_hero_media_meta";
 const ACCOUNTS_KEY = "arenax_user_accounts";
+const PRESENCE_KEY = "arenax_user_presence";
 const RESET_TOKEN_TTL_MS = Number(process.env.RESET_TOKEN_TTL_MINUTES || 30) * 60 * 1000;
 
 let DB_FILE = DB_FILE_CONFIG;
@@ -146,6 +147,28 @@ function createResetToken() {
   return { rawToken, tokenHash };
 }
 
+function readPresenceMap() {
+  const db = readDb();
+  const raw = db.records?.[PRESENCE_KEY]?.value;
+  try {
+    const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+    const list = Array.isArray(parsed) ? parsed : [];
+    const now = Date.now();
+    const activeWindowMs = 35_000;
+    const map = new Map();
+    list.forEach((row) => {
+      const email = String(row?.email || "").trim().toLowerCase();
+      if (!email) return;
+      const lastSeen = new Date(row?.last_seen || row?.updated_at || 0).getTime();
+      const online = Boolean(row?.online) && Number.isFinite(lastSeen) && now - lastSeen <= activeWindowMs;
+      map.set(email, { online, last_seen: row?.last_seen || row?.updated_at || "" });
+    });
+    return map;
+  } catch {
+    return new Map();
+  }
+}
+
 app.get("/health", (_req, res) => {
   res.json({
     ok: true,
@@ -155,6 +178,44 @@ app.get("/health", (_req, res) => {
     cloudinary_enabled: cloudinaryEnabled,
     frontend_url: FRONTEND_URL || null,
   });
+});
+
+app.get("/users/search", (req, res) => {
+  const q = String(req.query?.q || "").trim().toLowerCase();
+  if (q.length < 2) {
+    return res.json({ users: [] });
+  }
+
+  try {
+    const accounts = readAccounts();
+    const presence = readPresenceMap();
+    const users = accounts
+      .filter((item) => item?.email_verified)
+      .filter((item) => {
+        const fullName = String(item?.full_name || "").toLowerCase();
+        const handle = String(item?.handle || "").toLowerCase();
+        const email = String(item?.email || "").toLowerCase();
+        return fullName.includes(q) || handle.includes(q) || email.includes(q);
+      })
+      .slice(0, 25)
+      .map((item) => {
+        const email = String(item?.email || "").toLowerCase();
+        const p = presence.get(email) || { online: false, last_seen: "" };
+        return {
+          id: String(item?.id || ""),
+          full_name: String(item?.full_name || ""),
+          handle: item?.handle || "",
+          email,
+          avatar_url: item?.avatar_url || "",
+          online: Boolean(p.online),
+          last_seen: p.last_seen || "",
+        };
+      });
+    return res.json({ users });
+  } catch (error) {
+    console.error("[users/search]", error);
+    return res.status(500).json({ users: [] });
+  }
 });
 
 app.post("/auth/forgot-password", async (req, res) => {

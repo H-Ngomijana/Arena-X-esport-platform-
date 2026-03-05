@@ -38,6 +38,8 @@ const KEYS = {
   accounts: "arenax_user_accounts",
   passwordResets: "arenax_password_reset_requests",
   directMessages: "arenax_direct_messages",
+  userPresence: "arenax_user_presence",
+  chatTyping: "arenax_chat_typing_state",
   teamInvites: "arenax_team_invites",
   matchChatMessages: "arenax_match_chat_messages",
   systemSettings: "arenax_system_settings",
@@ -201,6 +203,25 @@ export interface DirectMessage {
   sender_name: string;
   receiver_email: string;
   message: string;
+  delivered_at?: string;
+  read_by?: string[];
+  read_at?: Record<string, string>;
+}
+
+export interface UserPresence {
+  email: string;
+  online: boolean;
+  last_seen: string;
+  updated_at: string;
+}
+
+export interface ChatTypingState {
+  id: string;
+  chat_id: string;
+  sender_email: string;
+  sender_name: string;
+  started_at: string;
+  expires_at: string;
 }
 
 export interface MatchChatMessage {
@@ -970,6 +991,10 @@ export function getAuthenticatedUser() {
 }
 
 export function signOutUser() {
+  const current = getCurrentUser();
+  if (!current.is_guest) {
+    markUserOffline(current.email);
+  }
   safeWrite(KEYS.currentUser, createGuestSession());
 }
 
@@ -1154,6 +1179,12 @@ export function getDirectMessages() {
   return safeRead<DirectMessage[]>(KEYS.directMessages, []);
 }
 
+function getDmChatId(userAEmail: string, userBEmail: string) {
+  const a = userAEmail.trim().toLowerCase();
+  const b = userBEmail.trim().toLowerCase();
+  return [a, b].sort().join("__");
+}
+
 export function getConversation(userAEmail: string, userBEmail: string) {
   const a = userAEmail.trim().toLowerCase();
   const b = userBEmail.trim().toLowerCase();
@@ -1164,6 +1195,23 @@ export function getConversation(userAEmail: string, userBEmail: string) {
         (item.sender_email.toLowerCase() === b && item.receiver_email.toLowerCase() === a)
     )
     .sort((x, y) => new Date(x.created_at).getTime() - new Date(y.created_at).getTime());
+}
+
+export function getConversationPage(userAEmail: string, userBEmail: string, page = 1, limit = 30) {
+  const conversation = getConversation(userAEmail, userBEmail);
+  const normalizedLimit = Math.max(1, limit);
+  const normalizedPage = Math.max(1, page);
+  const start = Math.max(0, conversation.length - normalizedPage * normalizedLimit);
+  const end = conversation.length - (normalizedPage - 1) * normalizedLimit;
+  return conversation.slice(start, end);
+}
+
+export function searchConversationMessages(userAEmail: string, userBEmail: string, query: string) {
+  const keyword = query.trim().toLowerCase();
+  if (!keyword) return [];
+  return getConversation(userAEmail, userBEmail).filter((item) =>
+    item.message.toLowerCase().includes(keyword)
+  );
 }
 
 export function sendDirectMessage(payload: {
@@ -1181,6 +1229,9 @@ export function sendDirectMessage(payload: {
     sender_name: payload.sender_name,
     receiver_email: payload.receiver_email.trim().toLowerCase(),
     message: content,
+    delivered_at: new Date().toISOString(),
+    read_by: [payload.sender_email.trim().toLowerCase()],
+    read_at: { [payload.sender_email.trim().toLowerCase()]: new Date().toISOString() },
   };
   safeWrite(KEYS.directMessages, [...getDirectMessages(), entry]);
   addUserNotification({
@@ -1191,6 +1242,120 @@ export function sendDirectMessage(payload: {
     link: `/messages?with=${encodeURIComponent(entry.sender_email)}`,
   });
   return entry;
+}
+
+export function markConversationRead(userEmail: string, otherEmail: string) {
+  const me = userEmail.trim().toLowerCase();
+  const other = otherEmail.trim().toLowerCase();
+  const all = getDirectMessages();
+  let changed = false;
+  const next = all.map((item) => {
+    const isConversation =
+      (item.sender_email.toLowerCase() === me && item.receiver_email.toLowerCase() === other) ||
+      (item.sender_email.toLowerCase() === other && item.receiver_email.toLowerCase() === me);
+    if (!isConversation) return item;
+    if (item.sender_email.toLowerCase() === me) return item;
+
+    const readBy = Array.isArray(item.read_by) ? item.read_by.map((row) => row.toLowerCase()) : [];
+    if (readBy.includes(me)) return item;
+    changed = true;
+    return {
+      ...item,
+      read_by: [...readBy, me],
+      read_at: { ...(item.read_at || {}), [me]: new Date().toISOString() },
+    };
+  });
+  if (changed) safeWrite(KEYS.directMessages, next);
+}
+
+export function getUserPresenceMap() {
+  const list = safeRead<UserPresence[]>(KEYS.userPresence, []);
+  const now = Date.now();
+  const activeWindowMs = 35_000;
+  const map: Record<string, UserPresence> = {};
+
+  list.forEach((row) => {
+    const email = row.email.trim().toLowerCase();
+    const lastSeen = new Date(row.last_seen || row.updated_at || 0).getTime();
+    const online = row.online && Number.isFinite(lastSeen) && now - lastSeen <= activeWindowMs;
+    map[email] = {
+      ...row,
+      email,
+      online,
+    };
+  });
+  return map;
+}
+
+export function getUserPresence(email: string) {
+  const normalized = email.trim().toLowerCase();
+  return getUserPresenceMap()[normalized] || null;
+}
+
+export function markUserOnline(email: string) {
+  const normalized = email.trim().toLowerCase();
+  if (!normalized || normalized === "guest@guest.local") return;
+  const all = safeRead<UserPresence[]>(KEYS.userPresence, []);
+  const nowIso = new Date().toISOString();
+  const next = all.some((row) => row.email.toLowerCase() === normalized)
+    ? all.map((row) =>
+        row.email.toLowerCase() === normalized
+          ? { ...row, online: true, last_seen: nowIso, updated_at: nowIso }
+          : row
+      )
+    : [...all, { email: normalized, online: true, last_seen: nowIso, updated_at: nowIso }];
+  safeWrite(KEYS.userPresence, next);
+}
+
+export function markUserOffline(email: string) {
+  const normalized = email.trim().toLowerCase();
+  if (!normalized || normalized === "guest@guest.local") return;
+  const all = safeRead<UserPresence[]>(KEYS.userPresence, []);
+  const nowIso = new Date().toISOString();
+  const next = all.map((row) =>
+    row.email.toLowerCase() === normalized
+      ? { ...row, online: false, last_seen: nowIso, updated_at: nowIso }
+      : row
+  );
+  safeWrite(KEYS.userPresence, next);
+}
+
+export function getChatTypingStates(chatId: string) {
+  const now = Date.now();
+  return safeRead<ChatTypingState[]>(KEYS.chatTyping, []).filter((row) => {
+    if (row.chat_id !== chatId) return false;
+    return new Date(row.expires_at).getTime() > now;
+  });
+}
+
+export function setChatTypingState(payload: {
+  userEmail: string;
+  userName: string;
+  peerEmail: string;
+  isTyping: boolean;
+}) {
+  const me = payload.userEmail.trim().toLowerCase();
+  const peer = payload.peerEmail.trim().toLowerCase();
+  const chatId = getDmChatId(me, peer);
+  const id = `${chatId}::${me}`;
+  const all = safeRead<ChatTypingState[]>(KEYS.chatTyping, []);
+  const now = Date.now();
+  const base = all.filter((row) => row.id !== id && new Date(row.expires_at).getTime() > now);
+  if (!payload.isTyping) {
+    safeWrite(KEYS.chatTyping, base);
+    return;
+  }
+  const startedAt = new Date().toISOString();
+  const expiresAt = new Date(now + 4000).toISOString();
+  base.push({
+    id,
+    chat_id: chatId,
+    sender_email: me,
+    sender_name: payload.userName,
+    started_at: startedAt,
+    expires_at: expiresAt,
+  });
+  safeWrite(KEYS.chatTyping, base);
 }
 
 export function getSystemSettings() {
