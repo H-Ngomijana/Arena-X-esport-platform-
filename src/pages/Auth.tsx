@@ -4,7 +4,6 @@ import { ArrowLeft, KeyRound, UserRound } from "lucide-react";
 import { uploadMediaFile } from "@/lib/media-upload";
 import { requestPasswordResetEmail, submitPasswordReset } from "@/lib/auth-api";
 import {
-  markEmailVerified,
   requestPasswordReset,
   resetPasswordWithToken,
   signInWithEmail,
@@ -35,7 +34,6 @@ const Auth = () => {
   const [signupConfirmPassword, setSignupConfirmPassword] = useState("");
   const [signupHandle, setSignupHandle] = useState("");
   const [signupAvatar, setSignupAvatar] = useState("");
-  const [pendingVerificationEmail, setPendingVerificationEmail] = useState("");
 
   const [loginEmail, setLoginEmail] = useState(rememberedEmail);
   const [loginPassword, setLoginPassword] = useState("");
@@ -68,25 +66,18 @@ const Auth = () => {
       return;
     }
     try {
-      const created = signUpWithEmail({
+      signUpWithEmail({
         full_name: signupName,
         email: signupEmail,
         password: signupPassword,
         handle: signupHandle || undefined,
         avatar_url: signupAvatar || undefined,
       });
-      setPendingVerificationEmail(created.email);
-      toast.success("Account created. Verify email to continue.");
+      toast.success("Account created. Signed in.");
+      navigate(redirect);
     } catch (error: any) {
       toast.error(error?.message || "Could not create account.");
     }
-  };
-
-  const handleVerify = () => {
-    if (!pendingVerificationEmail) return;
-    markEmailVerified(pendingVerificationEmail);
-    toast.success("Email verified.");
-    navigate(redirect);
   };
 
   const handleLogin = (event: FormEvent) => {
@@ -177,7 +168,7 @@ const Auth = () => {
             {mode === "signup"
               ? "Build your profile and start competing."
               : mode === "forgot"
-              ? "Request reset and verify from your email."
+              ? "Request reset and open the link from your email."
               : "Continue to your ArenaX account."}
           </p>
         </div>
@@ -203,11 +194,6 @@ const Auth = () => {
             <button type="submit" className="w-full h-12 rounded-xl bg-gradient-to-r from-fuchsia-500 to-rose-500 font-bold uppercase tracking-wide">
               Register
             </button>
-            {pendingVerificationEmail ? (
-              <button type="button" onClick={handleVerify} className="w-full h-11 rounded-xl border border-cyan-300/35 bg-cyan-400/10 text-cyan-200 font-semibold">
-                Verify Email and Continue
-              </button>
-            ) : null}
             <p className="text-center text-sm text-white/60 pt-1">
               Already have an account?
               <Link className="text-fuchsia-300 ml-1" to={`/auth?mode=login&redirect=${encodeURIComponent(redirect)}`}>
