@@ -125,7 +125,7 @@ const RegistrationForm: React.FC<{
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>MTN MoMo Payment</DialogTitle>
-            <DialogDescription>Flutterwave checkout card for mobile payments.</DialogDescription>
+            <DialogDescription>Approve the MTN MoMo collection popup on your phone to finish payment.</DialogDescription>
           </DialogHeader>
           <div className="rounded-xl border border-white/20 bg-white/5 p-4 space-y-2">
             <div className="text-xs text-muted-foreground">Team</div>
@@ -138,7 +138,7 @@ const RegistrationForm: React.FC<{
           <div className="flex justify-end gap-2">
             <Button variant="outline" disabled={loading} onClick={() => setShowMtnCard(false)}>Cancel</Button>
             <Button disabled={loading} onClick={runPayment}>
-              {loading ? "Charging..." : "Pay with MTN MoMo"}
+              {loading ? "Sending Request..." : "Send MTN Popup"}
             </Button>
           </div>
         </DialogContent>

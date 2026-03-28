@@ -20,7 +20,7 @@ const About = () => {
           <p className="text-sm text-muted-foreground">We enforce fair play: collusion, cheating, or match manipulation will lead to disqualification. Report suspicious activity to support immediately.</p>
 
           <h2 className="text-2xl font-semibold">Payment security</h2>
-          <p className="text-sm text-muted-foreground">Payments are secured by Flutterwave and routed through MTN MoMo for local transactions. We never store raw payment credentials — transactions are handled by the payment provider.</p>
+          <p className="text-sm text-muted-foreground">Payments are collected through MTN MoMo request-to-pay. We never store raw payment credentials, and users approve each transaction from the popup on their own phone.</p>
 
           <h2 className="text-2xl font-semibold">Contact support</h2>
           <p className="text-sm text-muted-foreground">For help contact: <a href="mailto:support@arenax.com" className="underline">support@arenax.com</a></p>

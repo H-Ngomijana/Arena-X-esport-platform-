@@ -11,7 +11,7 @@ const HowItWorks: React.FC<{ compact?: boolean }> = ({ compact = false }) => {
     {
       icon: <CreditCard size={20} className="text-primary" />,
       title: "Pay Entry Fee",
-      desc: "Secure MTN MoMo payment powered by Flutterwave to reserve your slot.",
+      desc: "Secure MTN MoMo request-to-pay popup reserves your tournament slot instantly.",
     },
     {
       icon: <CheckCircle size={20} className="text-primary" />,

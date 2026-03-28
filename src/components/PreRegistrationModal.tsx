@@ -3,7 +3,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 
 const MTN_LOGO = "https://seeklogo.com/images/M/mtn-logo-0B1E7F9A0F-seeklogo.com.png";
-const FLUTTERWAVE_BADGE = "https://flutterwave.com/assets/images/flutterwave-logo.png";
 
 const PreRegistrationModal: React.FC<{
   open: boolean;
@@ -30,7 +29,9 @@ const PreRegistrationModal: React.FC<{
             </div>
             <div className="flex flex-col items-end gap-2">
               <img src={MTN_LOGO} alt="MTN" className="h-8" />
-              <img src={FLUTTERWAVE_BADGE} alt="Flutterwave" className="h-6 opacity-90" />
+              <span className="rounded-full border border-[#FFCC00]/40 bg-[#FFCC00]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#FFCC00]">
+                Auto Popup
+              </span>
             </div>
           </div>
 

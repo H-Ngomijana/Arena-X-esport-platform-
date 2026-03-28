@@ -1,23 +1,34 @@
-import Flutterwave from "flutterwave-node-v3";
+import { getRequestToPayStatus, json, parseBody, sendMethodNotAllowed, sendOptions } from "./mtnMomo.js";
 
-const flw = new Flutterwave(
-  process.env.FLW_PUBLIC_KEY,
-  process.env.FLW_SECRET_KEY
-);
+export default async function verifyMomoPayment(req, res) {
+  if (req.method === "OPTIONS") return sendOptions(res);
+  if (req.method !== "POST") return sendMethodNotAllowed(req, res);
 
-export default async function verifyMomoPayment({ tx_ref }) {
-  if (!tx_ref) {
-    return { success: false, status: "missing_tx_ref" };
+  try {
+    const { transaction_id, tx_ref } = parseBody(req);
+    const requestId = transaction_id || tx_ref;
+    if (!requestId) {
+      return json(res, 400, { success: false, status: "missing_request_id" });
+    }
+
+    const data = await getRequestToPayStatus(requestId);
+    const status = String(data?.status || "").toUpperCase();
+    return json(res, 200, {
+      success: status === "SUCCESSFUL",
+      status,
+      amount: data?.amount,
+      currency: data?.currency,
+      tx_ref: data?.externalId || tx_ref || null,
+      momo_transaction_id: requestId,
+      financial_transaction_id: data?.financialTransactionId || null,
+      payer: data?.payer || null,
+      payer_message: data?.payerMessage || null,
+      payee_note: data?.payeeNote || null,
+    });
+  } catch (error) {
+    return json(res, 500, {
+      success: false,
+      error: error instanceof Error ? error.message : "mtn_momo_verify_failed",
+    });
   }
-
-  const response = await flw.Transaction.verify_by_reference({ tx_ref });
-  const data = response?.data;
-  return {
-    success: data?.status === "successful",
-    status: data?.status,
-    amount: data?.amount,
-    currency: data?.currency,
-    tx_ref: data?.tx_ref,
-    flw_transaction_id: data?.id,
-  };
 }

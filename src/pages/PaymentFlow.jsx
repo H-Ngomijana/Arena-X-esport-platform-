@@ -82,7 +82,7 @@ const PaymentFlow = () => {
     return () => window.removeEventListener("arenax:data-changed", onChange);
   }, []);
 
-  const createPaidRequest = async (reference, flwTransactionId) => {
+  const createPaidRequest = async (reference, momoTransactionId) => {
     upsertMyTournamentJoinRequest(tournament.id, currentUser.email, {
       tournament_name: tournament.name,
       user_name: currentUser.name,
@@ -93,7 +93,8 @@ const PaymentFlow = () => {
       payment_status: "paid",
       payment_method: "mtn_momo",
       payment_reference: reference,
-      flw_transaction_id: flwTransactionId || undefined,
+      flw_transaction_id: momoTransactionId || undefined,
+      momo_transaction_id: momoTransactionId || undefined,
       sender_name: senderName.trim(),
       sender_number: senderNumber.trim(),
       amount_paid: amount,
@@ -208,7 +209,7 @@ const PaymentFlow = () => {
         stop = true;
         clearInterval(poll);
         if (timeoutRef.current) clearTimeout(timeoutRef.current);
-        await createPaidRequest(txRef, result?.flw_transaction_id);
+        await createPaidRequest(txRef, result?.momo_transaction_id || result?.flw_transaction_id);
         setPaymentSuccess(true);
         setPaymentInitiated(false);
       }

@@ -34,7 +34,6 @@ const SYNC_KEYS = [
   "solo_registrations",
   "team_registrations",
   "transactions",
-  "flw_simulated_payments",
 ] as const;
 
 function readMeta(): SyncMeta {
