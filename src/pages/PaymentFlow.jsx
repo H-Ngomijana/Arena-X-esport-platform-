@@ -17,6 +17,14 @@ import {
 import { initiateMomoPayment, verifyMomoPayment } from "@/lib/payment";
 
 const isMobileDevice = () => /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+const isSandboxEnvironment = () => String(import.meta.env.VITE_MOMO_ENVIRONMENT || "").toLowerCase() === "sandbox";
+const normalizeRwandaPhone = (value = "") => {
+  const digits = String(value).replace(/\D/g, "");
+  if (digits.startsWith("250") && digits.length === 12) return digits;
+  if (digits.startsWith("0") && digits.length === 10) return `25${digits}`;
+  if (digits.length === 9 && digits.startsWith("7")) return `250${digits}`;
+  return null;
+};
 
 const PaymentFlow = () => {
   const navigate = useNavigate();
@@ -67,13 +75,21 @@ const PaymentFlow = () => {
 
   const amount = Number(tournament.entry_fee_amount ?? tournament.entry_fee ?? 0);
   const currency = tournament.entry_fee_currency || "RWF";
+  const effectiveCurrency = isSandboxEnvironment() ? "EUR" : currency;
+  const sandboxCurrencyNotice =
+    isSandboxEnvironment() && currency !== effectiveCurrency
+      ? `MTN sandbox only supports ${effectiveCurrency}, so this test payment will be sent in ${effectiveCurrency}.`
+      : "";
   const myJoinRequest = useMemo(
     () => getMyTournamentJoinRequest(tournament.id, currentUser.email),
     [tournament.id, currentUser.email, refreshTick]
   );
-  const mtnRegex = /^07[89]\d{7}$/;
-  const numberError = senderNumber && !mtnRegex.test(senderNumber) ? "Please enter a valid MTN Rwanda number (078/079 XXXXXXX)" : "";
-  const canProceed = senderName.trim() && mtnRegex.test(senderNumber);
+  const normalizedSenderNumber = normalizeRwandaPhone(senderNumber);
+  const numberError =
+    senderNumber && !normalizedSenderNumber
+      ? "Use a valid MTN Rwanda number like 078xxxxxxx, 079xxxxxxx, or +25078xxxxxxx"
+      : "";
+  const canProceed = senderName.trim() && Boolean(normalizedSenderNumber);
   const isMobile = isMobileDevice();
 
   useEffect(() => {
@@ -149,10 +165,10 @@ const PaymentFlow = () => {
     const ref = `ARX-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
     setLoading(true);
     try {
-      const result = await initiateMomoPayment({
-        phone_number: senderNumber,
+        const result = await initiateMomoPayment({
+        phone_number: normalizedSenderNumber,
         amount,
-        currency,
+        currency: effectiveCurrency,
         email: currentUser.email,
         name: senderName,
         tournament_name: tournament.name,
@@ -161,8 +177,8 @@ const PaymentFlow = () => {
       setTxRef(ref);
       setTransactionId(result?.data?.id?.toString?.() || ref);
       setPaymentInitiated(true);
-    } catch {
-      toast.error("Failed to initiate payment request");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to initiate payment request");
     } finally {
       setLoading(false);
     }
@@ -181,9 +197,9 @@ const PaymentFlow = () => {
     setLoading(true);
     try {
       const result = await initiateMomoPayment({
-        phone_number: senderNumber,
+        phone_number: normalizedSenderNumber || senderNumber,
         amount,
-        currency,
+        currency: effectiveCurrency,
         email: currentUser.email,
         name: senderName,
         tournament_name: tournament.name,
@@ -191,8 +207,8 @@ const PaymentFlow = () => {
       });
       setTransactionId(result?.data?.id?.toString?.() || txRef);
       toast.success("Payment request resent");
-    } catch {
-      toast.error("Could not resend request");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not resend request");
     } finally {
       setLoading(false);
     }
@@ -321,6 +337,7 @@ const PaymentFlow = () => {
             shake={shake}
             canProceed={canProceed && !loading}
             numberError={numberError}
+            sandboxCurrencyNotice={sandboxCurrencyNotice}
             onProceed={startPayment}
           />
         )}

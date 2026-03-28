@@ -25,6 +25,7 @@ const PaymentCard = ({
                 onChange={(e) => onSenderNameChange(e.target.value)}
                 className="bg-slate-950 border-white/10"
                 placeholder="John Doe"
+                autoComplete="name"
               />
             </div>
             <div className={shake && !senderNumber ? "animate-field-shake" : ""}>
@@ -33,8 +34,15 @@ const PaymentCard = ({
                 value={senderNumber}
                 onChange={(e) => onSenderNumberChange(e.target.value)}
                 className="bg-slate-950 border-white/10"
-                placeholder="07X XXX XXXX"
+                placeholder="0781234567 or +250781234567"
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
+                aria-describedby="mtn-number-help"
               />
+              <p id="mtn-number-help" className="mt-1 text-xs text-white/50">
+                Enter your MTN Rwanda number in local or +250 format.
+              </p>
             </div>
           </div>
         </div>

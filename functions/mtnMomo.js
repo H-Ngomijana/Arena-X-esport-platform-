@@ -105,11 +105,15 @@ export async function createRequestToPay({
   payeeNote,
 }) {
   const config = getRequiredConfig();
+  const normalizedCurrency = String(currency || "RWF").toUpperCase();
+  if (config.targetEnvironment === "sandbox" && normalizedCurrency !== "EUR") {
+    throw new Error("MTN sandbox only supports EUR. Use EUR in sandbox or switch to production credentials for RWF.");
+  }
   const token = await getAccessToken(config);
   const referenceId = crypto.randomUUID();
   const body = {
     amount: Number(amount).toFixed(0),
-    currency,
+    currency: normalizedCurrency,
     externalId,
     payer: {
       partyIdType: "MSISDN",

@@ -10,10 +10,17 @@ const PaymentForm = ({
   shake,
   canProceed,
   numberError,
+  sandboxCurrencyNotice,
   onProceed,
 }) => {
   return (
-    <>
+    <form
+      className="space-y-3"
+      onSubmit={(event) => {
+        event.preventDefault();
+        onProceed();
+      }}
+    >
       <PaymentCard
         senderName={senderName}
         senderNumber={senderNumber}
@@ -23,6 +30,7 @@ const PaymentForm = ({
         shake={shake}
       />
       {numberError && <p className="text-sm text-rose-400">{numberError}</p>}
+      {sandboxCurrencyNotice && <p className="text-sm text-amber-300">{sandboxCurrencyNotice}</p>}
       <div className="grid grid-cols-2 gap-3">
         <Link
           to={`/Tournament?id=${tournament.id}`}
@@ -31,14 +39,16 @@ const PaymentForm = ({
           BACK
         </Link>
         <button
-          onClick={onProceed}
-          className="h-12 rounded-xl font-bold bg-[#FFCC00] hover:bg-[#ffd633] text-black disabled:opacity-50"
-          disabled={!canProceed}
+          type="submit"
+          aria-disabled={!canProceed}
+          className={`h-12 rounded-xl font-bold text-black transition-colors ${
+            canProceed ? "bg-[#FFCC00] hover:bg-[#ffd633]" : "bg-[#FFCC00]/70 hover:bg-[#FFCC00]/80"
+          }`}
         >
           PROCEED PAYMENT
         </button>
       </div>
-    </>
+    </form>
   );
 };
 

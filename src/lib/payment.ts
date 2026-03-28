@@ -39,6 +39,32 @@ const writeTransactions = (transactions: PaymentTransaction[]) => {
 
 export const getTransactions = () => readTransactions();
 
+async function postJsonWithFallback(path: string, payload: unknown) {
+  const candidates = path.startsWith("/api/")
+    ? [path, path.replace(/^\/api\//, "/functions/")]
+    : [path];
+
+  let lastError: Error | null = null;
+  for (const candidate of candidates) {
+    try {
+      const response = await fetch(candidate, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || data?.success === false) {
+        throw new Error(data?.error || `HTTP ${response.status}`);
+      }
+      return data;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error("request_failed");
+    }
+  }
+
+  throw lastError || new Error("request_failed");
+}
+
 export async function initiatePayment({
   amount,
   currency = "RWF",
@@ -92,34 +118,18 @@ export async function initiateMomoPayment(payload: {
   tournament_name: string;
   tx_ref: string;
 }) {
-  const response = await fetch("/functions/initiateMomoPayment", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok || data?.success === false) {
-    throw new Error(data?.error || `HTTP ${response.status}`);
-  }
-  return data;
+  return postJsonWithFallback("/api/initiateMomoPayment", payload);
 }
 
 export async function verifyMomoPayment(payload: { transaction_id: string; tx_ref?: string }) {
   const body = payload.tx_ref ? { tx_ref: payload.tx_ref } : payload;
-  let response = await fetch("/functions/verifyMomoPayment", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!response.ok) {
-    response = await fetch("/functions/verifyPayment", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
+  let data;
+  try {
+    data = await postJsonWithFallback("/api/verifyMomoPayment", body);
+  } catch {
+    data = await postJsonWithFallback("/api/verifyPayment", body);
   }
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok || data?.success === false && data?.status && data.status !== "PENDING") {
+  if (data?.success === false && data?.status && data.status !== "PENDING") {
     return {
       ...data,
       success: false,
