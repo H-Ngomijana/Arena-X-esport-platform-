@@ -41,8 +41,10 @@ const PaymentForm = ({
         <button
           type="submit"
           aria-disabled={!canProceed}
-          className={`h-12 rounded-xl font-bold text-black transition-colors ${
-            canProceed ? "bg-[#FFCC00] hover:bg-[#ffd633]" : "bg-[#FFCC00]/70 hover:bg-[#FFCC00]/80"
+          className={`h-12 rounded-xl border border-[#ffe680] font-extrabold tracking-wide text-black shadow-[0_0_24px_rgba(255,204,0,0.35)] transition-all ${
+            canProceed
+              ? "bg-[#FFCC00] hover:bg-[#ffd633] hover:shadow-[0_0_32px_rgba(255,204,0,0.5)]"
+              : "bg-[#FFCC00] opacity-100"
           }`}
         >
           PROCEED PAYMENT
