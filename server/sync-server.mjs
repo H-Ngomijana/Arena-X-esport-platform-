@@ -199,6 +199,9 @@ app.post("/payments/initiate-momo", async (req, res) => {
       status: payment.status,
       tx_ref,
       momo_request_id: payment.referenceId,
+      currency: payment.effectiveCurrency,
+      requested_currency: payment.requestedCurrency,
+      sandbox_currency_adjusted: payment.sandboxCurrencyAdjusted,
       data: {
         id: payment.referenceId,
         tx_ref,
