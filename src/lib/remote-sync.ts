@@ -65,8 +65,8 @@ let manualSyncInFlight = false;
 let lastManualSyncAt = 0;
 const LOCAL_WRITE_PROTECT_MS = 2 * 60 * 1000;
 const MAX_RECORD_BYTES = 2 * 1024 * 1024;
-const PUSH_INTERVAL_MS = 800;
-const PULL_INTERVAL_MS = 800;
+const PUSH_INTERVAL_MS = 5000;
+const PULL_INTERVAL_MS = 5000;
 
 function stripDataUrls(value: any): { value: any; changed: boolean } {
   if (typeof value === "string") {

@@ -5,6 +5,21 @@ const DB_VERSION = 1;
 const STORE_NAME = "kv";
 const HERO_VIDEO_KEY = "home_hero_video_blob";
 const HERO_VIDEO_META_KEY = "home_hero_video_meta";
+const REMOTE_HERO_META_CACHE_MS = 15_000;
+
+let remoteHeroMetaCache:
+  | {
+      expiresAt: number;
+      value: {
+        exists?: boolean;
+        name?: string;
+        type?: string;
+        size?: number;
+        updated_at?: string;
+        url?: string;
+      } | null;
+    }
+  | null = null;
 
 type SaveHeroVideoOptions = {
   onProgress?: (progress: number) => void;
@@ -20,7 +35,31 @@ export function getHomeHeroVideoStreamUrl(cacheKey?: string): string {
 }
 
 function emitUpdate() {
+  remoteHeroMetaCache = null;
   window.dispatchEvent(new CustomEvent("arenax:hero-video-updated", { detail: { at: new Date().toISOString() } }));
+}
+
+async function fetchRemoteHeroMeta() {
+  const now = Date.now();
+  if (remoteHeroMetaCache && remoteHeroMetaCache.expiresAt > now) {
+    return remoteHeroMetaCache.value;
+  }
+
+  const response = await fetch(getApiUrl("/media/home-hero-meta"), { method: "GET", credentials: "include" });
+  if (!response.ok) {
+    remoteHeroMetaCache = {
+      expiresAt: now + 3000,
+      value: null,
+    };
+    return null;
+  }
+
+  const payload = await response.json();
+  remoteHeroMetaCache = {
+    expiresAt: now + REMOTE_HERO_META_CACHE_MS,
+    value: payload,
+  };
+  return payload;
 }
 
 function openDb(): Promise<IDBDatabase> {
@@ -188,9 +227,7 @@ export async function hasRemoteHomeHeroVideo(): Promise<boolean> {
   const baseUrl = getApiBaseUrl();
   if (!baseUrl) return false;
   try {
-    const response = await fetch(getApiUrl("/media/home-hero-meta"), { method: "GET", credentials: "include" });
-    if (!response.ok) return false;
-    const payload = await response.json();
+    const payload = await fetchRemoteHeroMeta();
     return Boolean(payload?.exists);
   } catch {
     return false;
@@ -209,21 +246,18 @@ export async function getHomeHeroVideoMeta(): Promise<{
   if (!baseUrl) return await getValue(HERO_VIDEO_META_KEY);
 
   try {
-    const response = await fetch(getApiUrl("/media/home-hero-meta"), { method: "GET", credentials: "include" });
-    if (response.ok) {
-      const payload = await response.json();
-      if (payload?.exists) {
-        return {
-          name: payload.name,
-          type: payload.type,
-          size: payload.size,
-          updated_at: payload.updated_at,
-          source: "remote",
-          url: payload.url,
-        };
-      }
-      return null;
+    const payload = await fetchRemoteHeroMeta();
+    if (payload?.exists) {
+      return {
+        name: payload.name,
+        type: payload.type,
+        size: payload.size,
+        updated_at: payload.updated_at,
+        source: "remote",
+        url: payload.url,
+      };
     }
+    return null;
   } catch {
     // fallback to local
   }
