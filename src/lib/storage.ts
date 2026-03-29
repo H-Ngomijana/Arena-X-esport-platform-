@@ -93,7 +93,6 @@ export interface JoinRequest {
   payment_status: "pending" | "paid" | "failed" | "refunded" | "free" | "manual_pending";
   payment_method?: "mtn_momo" | "manual" | "free";
   payment_reference: string;
-  flw_transaction_id?: string;
   momo_transaction_id?: string;
   sender_name: string;
   sender_number: string;

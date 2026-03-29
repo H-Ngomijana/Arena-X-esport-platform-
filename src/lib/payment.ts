@@ -144,7 +144,5 @@ export async function verifyMomoPayment(payload: { transaction_id: string; tx_re
     ...data,
     momo_transaction_id:
       data?.momo_transaction_id || data?.financial_transaction_id || data?.id || null,
-    flw_transaction_id:
-      data?.flw_transaction_id || data?.momo_transaction_id || data?.financial_transaction_id || data?.id || null,
   };
 }
