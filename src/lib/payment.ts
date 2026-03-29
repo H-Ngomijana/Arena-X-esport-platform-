@@ -1,3 +1,4 @@
+import { getApiUrl } from "@/lib/api";
 import { markKeyDirty } from "@/lib/remote-sync";
 
 export type PaymentStatus = "pending" | "success" | "failed";
@@ -40,7 +41,9 @@ const writeTransactions = (transactions: PaymentTransaction[]) => {
 export const getTransactions = () => readTransactions();
 
 async function postJsonWithFallback(path: string, payload: unknown) {
-  const candidates = path.startsWith("/api/")
+  const candidates = path.startsWith("/payments/")
+    ? [getApiUrl(path)]
+    : path.startsWith("/api/")
     ? [path, path.replace(/^\/api\//, "/functions/")]
     : [path];
 
@@ -118,16 +121,16 @@ export async function initiateMomoPayment(payload: {
   tournament_name: string;
   tx_ref: string;
 }) {
-  return postJsonWithFallback("/api/initiateMomoPayment", payload);
+  return postJsonWithFallback("/payments/initiate-momo", payload);
 }
 
 export async function verifyMomoPayment(payload: { transaction_id: string; tx_ref?: string }) {
   const body = payload.tx_ref ? { tx_ref: payload.tx_ref } : payload;
   let data;
   try {
-    data = await postJsonWithFallback("/api/verifyMomoPayment", body);
+    data = await postJsonWithFallback("/payments/verify-momo", body);
   } catch {
-    data = await postJsonWithFallback("/api/verifyPayment", body);
+    data = await postJsonWithFallback("/payments/verify", body);
   }
   if (data?.success === false && data?.status && data.status !== "PENDING") {
     return {

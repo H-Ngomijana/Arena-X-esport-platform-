@@ -4,6 +4,7 @@ import fs from "fs";
 import crypto from "crypto";
 import path from "path";
 import { fileURLToPath } from "url";
+import { createRequestToPay, getRequestToPayStatus } from "../functions/mtnMomo.js";
 import {
   cloudinaryEnabled,
   uploadBufferToCloudinary,
@@ -178,6 +179,96 @@ app.get("/health", (_req, res) => {
     cloudinary_enabled: cloudinaryEnabled,
     frontend_url: FRONTEND_URL || null,
   });
+});
+
+app.post("/payments/initiate-momo", async (req, res) => {
+  try {
+    const { phone_number, amount, currency, name, tournament_name, tx_ref } = req.body || {};
+    const payment = await createRequestToPay({
+      phoneNumber: phone_number,
+      amount,
+      currency: currency || "RWF",
+      externalId: tx_ref,
+      payerMessage: `ArenaX ${tournament_name || "Tournament"} entry`,
+      payeeNote: `Paid by ${name || "Player"}`,
+    });
+
+    return res.json({
+      success: true,
+      status: payment.status,
+      tx_ref,
+      momo_request_id: payment.referenceId,
+      data: {
+        id: payment.referenceId,
+        tx_ref,
+      },
+    });
+  } catch (error) {
+    console.error("[payments/initiate-momo]", error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : "mtn_momo_request_failed",
+    });
+  }
+});
+
+app.post("/payments/verify-momo", async (req, res) => {
+  try {
+    const { transaction_id, tx_ref } = req.body || {};
+    const requestId = transaction_id || tx_ref;
+    if (!requestId) {
+      return res.status(400).json({ success: false, status: "missing_request_id" });
+    }
+
+    const data = await getRequestToPayStatus(requestId);
+    const status = String(data?.status || "").toUpperCase();
+    return res.json({
+      success: status === "SUCCESSFUL",
+      status,
+      amount: data?.amount,
+      currency: data?.currency,
+      tx_ref: data?.externalId || tx_ref || null,
+      momo_transaction_id: requestId,
+      financial_transaction_id: data?.financialTransactionId || null,
+      payer: data?.payer || null,
+      payer_message: data?.payerMessage || null,
+      payee_note: data?.payeeNote || null,
+    });
+  } catch (error) {
+    console.error("[payments/verify-momo]", error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : "mtn_momo_verify_failed",
+    });
+  }
+});
+
+app.post("/payments/verify", async (req, res) => {
+  try {
+    const { transaction_id, tx_ref } = req.body || {};
+    const requestId = transaction_id || tx_ref;
+    if (!requestId) {
+      return res.status(400).json({ success: false, status: "missing_request_id" });
+    }
+
+    const data = await getRequestToPayStatus(requestId);
+    const status = String(data?.status || "").toUpperCase();
+    return res.json({
+      success: status === "SUCCESSFUL",
+      status,
+      amount: data?.amount,
+      currency: data?.currency,
+      tx_ref: data?.externalId || tx_ref || null,
+      momo_transaction_id: requestId,
+      financial_transaction_id: data?.financialTransactionId || null,
+    });
+  } catch (error) {
+    console.error("[payments/verify]", error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : "mtn_momo_verify_failed",
+    });
+  }
 });
 
 app.get("/users/search", (req, res) => {
