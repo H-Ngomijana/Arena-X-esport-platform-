@@ -31,23 +31,28 @@ function getRequiredConfig() {
   const config = {
     baseUrl: (
       process.env.MTN_MOMO_BASE_URL ||
+      process.env.MOMO_BASE_URL ||
       process.env.VITE_MOMO_BASE_URL ||
       DEFAULT_BASE_URL
     ).replace(/\/$/, ""),
     subscriptionKey:
       process.env.MTN_MOMO_COLLECTION_PRIMARY_KEY ||
+      process.env.MOMO_SUBSCRIPTION_KEY ||
       process.env.VITE_MOMO_SUBSCRIPTION_KEY ||
       "",
     apiUser:
       process.env.MTN_MOMO_API_USER ||
+      process.env.MOMO_API_USER_ID ||
       process.env.VITE_MOMO_API_USER_ID ||
       "",
     apiKey:
       process.env.MTN_MOMO_API_KEY ||
+      process.env.MOMO_API_KEY ||
       process.env.VITE_MOMO_API_KEY ||
       "",
     targetEnvironment:
       process.env.MTN_MOMO_TARGET_ENVIRONMENT ||
+      process.env.MOMO_ENVIRONMENT ||
       process.env.VITE_MOMO_ENVIRONMENT ||
       "sandbox",
   };
