@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { hasRemoteApiBaseUrl } from "@/lib/api";
 import { markKeyDirty } from "@/lib/remote-sync";
 
 export interface Submission {
@@ -42,7 +43,7 @@ export const SubmissionsProvider: React.FC<{ children: React.ReactNode }> = ({
 }) => {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loaded, setLoaded] = useState(false);
-  const syncApiConfigured = Boolean((import.meta.env.VITE_SYNC_API_BASE_URL || "").trim());
+  const syncApiConfigured = hasRemoteApiBaseUrl();
 
   // Load from localStorage on mount
   useEffect(() => {

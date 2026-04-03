@@ -1,4 +1,5 @@
 import { tournaments as mockTournaments, teams as mockTeams, users, matches as mockMatches } from "@/lib/mock-data";
+import { hasRemoteApiBaseUrl } from "@/lib/api";
 import { markKeyDirty } from "@/lib/remote-sync";
 import { resolveMediaUrl } from "@/lib/media-url";
 
@@ -45,7 +46,7 @@ const KEYS = {
   systemSettings: "arenax_system_settings",
 } as const;
 
-const syncApiConfigured = Boolean((import.meta.env.VITE_SYNC_API_BASE_URL || "").trim());
+const syncApiConfigured = hasRemoteApiBaseUrl();
 
 export interface PageBackgrounds {
   games_page?: string;

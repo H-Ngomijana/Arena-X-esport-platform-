@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { hasRemoteApiBaseUrl } from "@/lib/api";
 import { games as initialGames } from "@/lib/mock-data";
 import { markKeyDirty } from "@/lib/remote-sync";
 import { resolveMediaUrl } from "@/lib/media-url";
@@ -31,7 +32,7 @@ interface GamesContextType {
 const GamesContext = createContext<GamesContextType | undefined>(undefined);
 
 const GAMES_KEY = "arenax_games";
-const syncApiConfigured = Boolean((import.meta.env.VITE_SYNC_API_BASE_URL || "").trim());
+const syncApiConfigured = hasRemoteApiBaseUrl();
 
 function readStoredGames(): Game[] | null {
   try {

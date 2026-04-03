@@ -1,5 +1,7 @@
+import { getApiBaseUrl } from "@/lib/api";
+
 export function getSyncMediaBaseUrl(): string {
-  const configured = (import.meta.env.VITE_SYNC_API_BASE_URL || "").trim();
+  const configured = getApiBaseUrl();
   if (configured) return configured.replace(/\/+$/, "");
   if (typeof window !== "undefined" && window.location?.origin) {
     return window.location.origin.replace(/\/+$/, "");

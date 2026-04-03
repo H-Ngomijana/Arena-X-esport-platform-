@@ -6,6 +6,7 @@ const resolveBase = () => {
 };
 
 export const getApiBaseUrl = () => resolveBase();
+export const hasRemoteApiBaseUrl = () => Boolean(resolveBase());
 
 export const getApiUrl = (path: string) => {
   if (/^https?:\/\//i.test(path)) return path;

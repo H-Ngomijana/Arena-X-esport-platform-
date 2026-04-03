@@ -19,6 +19,10 @@ const __dirname = path.dirname(__filename);
 const PORT = Number(process.env.PORT || 8787);
 const DB_FILE_CONFIG = process.env.SYNC_DB_FILE || path.join(__dirname, "sync-state.json");
 const FRONTEND_URL = (process.env.FRONTEND_URL || "").trim();
+const ALLOWED_ORIGINS = FRONTEND_URL
+  .split(",")
+  .map((item) => item.trim())
+  .filter(Boolean);
 const DIST_DIR = path.resolve(__dirname, "../dist");
 const HERO_META_KEY = "home_hero_media_meta";
 const ACCOUNTS_KEY = "arenax_user_accounts";
@@ -35,7 +39,11 @@ const corsOptions = {
       callback(null, true);
       return;
     }
-    if (FRONTEND_URL && origin === FRONTEND_URL) {
+    if (ALLOWED_ORIGINS.length === 0) {
+      callback(null, true);
+      return;
+    }
+    if (ALLOWED_ORIGINS.includes(origin)) {
       callback(null, true);
       return;
     }
