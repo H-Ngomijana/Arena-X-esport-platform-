@@ -262,11 +262,7 @@ const Auth = () => {
           </>
         ) : (
           <>
-            <div className="grid grid-cols-1 gap-2 mb-4">
-              <button type="button" onClick={handleGoogle} className="h-10 rounded-xl border border-white/20 bg-white/5 text-white/80 hover:bg-white/10">
-                Continue with Google
-              </button>
-            </div>
+            {/* Google button removed to match site styling */}
             <form className="space-y-3" onSubmit={handleLogin}>
               <label className="auth-input-wrap">
                 <Mail size={16} className="auth-input-icon" />

@@ -160,16 +160,16 @@
   }
 
   .auth-input:focus {
-    border-bottom-color: rgba(190, 24, 93, 0.9);
-    box-shadow: 0 6px 24px rgba(190,24,93,0.06);
+    border-bottom-color: var(--gradient-to);
+    box-shadow: 0 6px 24px rgba(139,92,246,0.06);
   }
 
   .auth-button {
     @apply w-full text-sm font-bold text-white uppercase;
     height: 44px;
     border-radius: 9999px;
-    background: linear-gradient(90deg,#8b5cf6 0%,#ec4899 100%);
-    box-shadow: 0 8px 30px rgba(139,92,246,0.18);
+    background: linear-gradient(90deg, var(--gradient-from), var(--gradient-to));
+    box-shadow: 0 8px 30px rgba(99,102,241,0.14);
   }
 
   .glow-primary {
