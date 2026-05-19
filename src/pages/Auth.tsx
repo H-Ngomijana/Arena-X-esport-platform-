@@ -1,6 +1,6 @@
 import { ChangeEvent, FormEvent, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, KeyRound, UserRound } from "lucide-react";
+import { ArrowLeft, KeyRound, UserRound, Mail } from "lucide-react";
 import { uploadMediaFile } from "@/lib/media-upload";
 import { requestPasswordResetEmail, submitPasswordReset } from "@/lib/auth-api";
 import {
@@ -150,34 +150,51 @@ const Auth = () => {
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_10%_20%,#1b2d5b_0%,#12163d_42%,#090b1d_100%)] text-white flex items-center justify-center px-4 py-10">
-      <div className="w-full max-w-md rounded-3xl border border-white/15 bg-[#0b1024]/90 backdrop-blur-xl shadow-[0_20px_70px_rgba(0,0,0,0.45)] p-6 sm:p-8">
-        <button
-          onClick={() => navigate(-1)}
-          className="mb-4 inline-flex items-center gap-1 text-xs uppercase tracking-widest text-white/50 hover:text-white/80"
-        >
+      <div className="w-full max-w-md auth-card p-6 sm:p-8">
+        <button onClick={() => navigate(-1)} className="mb-4 inline-flex items-center gap-1 text-xs text-white/50 hover:text-white/80">
           <ArrowLeft size={14} /> Back
         </button>
 
-        <div className="rounded-2xl border border-fuchsia-300/20 bg-gradient-to-r from-fuchsia-500 to-rose-500 px-4 py-4 mb-6">
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tight uppercase">
+        <div className="text-center mb-6">
+          <div className="auth-avatar mx-auto mb-4">
+            {mode === "signup" && signupAvatar ? (
+              <img src={signupAvatar} alt="avatar" className="w-full h-full rounded-full object-cover" />
+            ) : (
+              <div className="w-full h-full rounded-full bg-white/6 flex items-center justify-center text-white/70">
+                <UserRound size={36} />
+              </div>
+            )}
+          </div>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight uppercase">
             {mode === "signup" ? "Create Account" : mode === "forgot" ? "Reset Password" : "Sign In"}
           </h1>
-          <p className="text-white/90 text-sm mt-1">
-            {mode === "signup"
-              ? "Build your profile and start competing."
-              : mode === "forgot"
-              ? "Request reset and open the link from your email."
-              : "Continue to your ArenaX account."}
+          <p className="text-white/80 text-sm mt-1">
+            {mode === "signup" ? "Build your profile and start competing." : mode === "forgot" ? "Request reset and open the link from your email." : "Continue to your ArenaX account."}
           </p>
         </div>
 
         {mode === "signup" ? (
           <form className="space-y-3" onSubmit={handleSignUp}>
-            <input className="w-full h-11 rounded-xl border border-white/20 bg-white/5 px-4 placeholder:text-white/40 focus:outline-none focus:border-cyan-300/60" placeholder="Full names" value={signupName} onChange={(e) => setSignupName(e.target.value)} required />
-            <input className="w-full h-11 rounded-xl border border-white/20 bg-white/5 px-4 placeholder:text-white/40 focus:outline-none focus:border-cyan-300/60" placeholder="Email" type="email" value={signupEmail} onChange={(e) => setSignupEmail(e.target.value)} required />
-            <input className="w-full h-11 rounded-xl border border-white/20 bg-white/5 px-4 placeholder:text-white/40 focus:outline-none focus:border-cyan-300/60" placeholder="Nickname (optional)" value={signupHandle} onChange={(e) => setSignupHandle(e.target.value)} />
-            <input className="w-full h-11 rounded-xl border border-white/20 bg-white/5 px-4 placeholder:text-white/40 focus:outline-none focus:border-cyan-300/60" placeholder="Password" type="password" value={signupPassword} onChange={(e) => setSignupPassword(e.target.value)} required />
-            <input className="w-full h-11 rounded-xl border border-white/20 bg-white/5 px-4 placeholder:text-white/40 focus:outline-none focus:border-cyan-300/60" placeholder="Confirm password" type="password" value={signupConfirmPassword} onChange={(e) => setSignupConfirmPassword(e.target.value)} required />
+            <label className="auth-input-wrap">
+              <UserRound size={16} className="auth-input-icon" />
+              <input className="auth-input" placeholder="Full names" value={signupName} onChange={(e) => setSignupName(e.target.value)} required />
+            </label>
+            <label className="auth-input-wrap">
+              <Mail size={16} className="auth-input-icon" />
+              <input className="auth-input" placeholder="Email" type="email" value={signupEmail} onChange={(e) => setSignupEmail(e.target.value)} required />
+            </label>
+            <label className="auth-input-wrap">
+              <UserRound size={16} className="auth-input-icon" />
+              <input className="auth-input" placeholder="Nickname (optional)" value={signupHandle} onChange={(e) => setSignupHandle(e.target.value)} />
+            </label>
+            <label className="auth-input-wrap">
+              <KeyRound size={16} className="auth-input-icon" />
+              <input className="auth-input" placeholder="Password" type="password" value={signupPassword} onChange={(e) => setSignupPassword(e.target.value)} required />
+            </label>
+            <label className="auth-input-wrap">
+              <KeyRound size={16} className="auth-input-icon" />
+              <input className="auth-input" placeholder="Confirm password" type="password" value={signupConfirmPassword} onChange={(e) => setSignupConfirmPassword(e.target.value)} required />
+            </label>
             <label className="flex items-center justify-between w-full h-11 rounded-xl border border-white/20 bg-white/5 px-4 cursor-pointer text-sm text-white/70">
               <span>{signupAvatar ? "Profile image selected" : "Upload profile picture"}</span>
               <UserRound size={16} />
@@ -189,9 +206,7 @@ const Auth = () => {
                 <p className="text-xs text-white/70">This picture will appear on your account menu.</p>
               </div>
             ) : null}
-            <button type="submit" className="w-full h-12 rounded-xl bg-gradient-to-r from-fuchsia-500 to-rose-500 font-bold uppercase tracking-wide">
-              Register
-            </button>
+            <button type="submit" className="auth-button">Register</button>
             <p className="text-center text-sm text-white/60 pt-1">
               Already have an account?
               <Link className="text-fuchsia-300 ml-1" to={`/auth?mode=login&redirect=${encodeURIComponent(redirect)}`}>
@@ -202,14 +217,11 @@ const Auth = () => {
         ) : mode === "forgot" ? (
           <>
             <form className="space-y-3" onSubmit={handleForgot}>
-              <input className="w-full h-11 rounded-xl border border-white/20 bg-white/5 px-4 placeholder:text-white/40 focus:outline-none focus:border-cyan-300/60" placeholder="Registered email" type="email" value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} required />
-              <button
-                type="submit"
-                disabled={sendingResetEmail}
-                className="w-full h-12 rounded-xl bg-gradient-to-r from-fuchsia-500 to-rose-500 font-bold uppercase tracking-wide disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                {sendingResetEmail ? "Sending..." : "Send Reset Link"}
-              </button>
+              <label className="auth-input-wrap">
+                <Mail size={16} className="auth-input-icon" />
+                <input className="auth-input" placeholder="Registered email" type="email" value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} required />
+              </label>
+              <button type="submit" disabled={sendingResetEmail} className="auth-button disabled:opacity-60 disabled:cursor-not-allowed">{sendingResetEmail ? "Sending..." : "Send Reset Link"}</button>
             </form>
             <p className="mt-4 text-sm text-white/65">
               Open the reset link from your email and set your new password.
@@ -256,15 +268,24 @@ const Auth = () => {
               </button>
             </div>
             <form className="space-y-3" onSubmit={handleLogin}>
-              <input className="w-full h-11 rounded-xl border border-white/20 bg-white/5 px-4 placeholder:text-white/40 focus:outline-none focus:border-cyan-300/60" placeholder="Email" type="email" value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} required />
-              <input className="w-full h-11 rounded-xl border border-white/20 bg-white/5 px-4 placeholder:text-white/40 focus:outline-none focus:border-cyan-300/60" placeholder="Current password" type="password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} required />
-              <label className="inline-flex items-center gap-2 text-sm text-white/60">
-                <input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} />
-                remember me
+              <label className="auth-input-wrap">
+                <Mail size={16} className="auth-input-icon" />
+                <input className="auth-input" placeholder="Email" type="email" value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} required />
               </label>
-              <button type="submit" className="w-full h-12 rounded-xl bg-gradient-to-r from-fuchsia-500 to-rose-500 font-bold uppercase tracking-wide">
-                Sign In
-              </button>
+              <label className="auth-input-wrap">
+                <KeyRound size={16} className="auth-input-icon" />
+                <input className="auth-input" placeholder="Password" type="password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} required />
+              </label>
+              <div className="flex items-center justify-between">
+                <label className="inline-flex items-center gap-2 text-sm text-white/60">
+                  <input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} />
+                  Remember me
+                </label>
+                <Link className="text-sm text-fuchsia-300" to={`/auth?mode=forgot&redirect=${encodeURIComponent(redirect)}`}>
+                  Forgot?
+                </Link>
+              </div>
+              <button type="submit" className="auth-button">Sign In</button>
             </form>
             <div className="text-center mt-4 text-sm">
               <Link className="text-fuchsia-300" to={`/auth?mode=forgot&redirect=${encodeURIComponent(redirect)}`}>
