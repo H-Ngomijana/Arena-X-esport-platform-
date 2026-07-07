@@ -1,162 +1,66 @@
-import { useSearchParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import RankBadge from "@/components/RankBadge";
+import { Crown } from "lucide-react";
+import { DivisionSwitcher } from "@/components/divisions/DivisionSwitcher";
+import { LiveStandingsTable } from "@/components/divisions/LiveStandingsTable";
+import {
+  fallbackDivisions,
+  fetchDivision,
+  fetchDivisionLeaderboard,
+  fetchDivisions,
+  fetchGlobalElite,
+} from "@/lib/divisions-api";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
-import { getAccounts, getSoloProfiles, getTeams } from "@/lib/storage";
-import { useRealtimeRefresh } from "@/components/hooks/useRealtimeRefresh";
 
 const Rankings = () => {
-  useRealtimeRefresh({
-    keys: ["solo_profiles", "teams", "matches", "tournaments"],
-    intervalMs: 10000,
+  const { divisionSlug } = useParams();
+  const { data: divisions = fallbackDivisions } = useQuery({
+    queryKey: ["divisions"],
+    queryFn: fetchDivisions,
   });
-  const [searchParams] = useSearchParams();
-  const defaultTab = searchParams.get("type") === "solo" ? "solo" : "team";
-  const accountsByEmail = Object.fromEntries(
-    getAccounts().map((account) => [account.email.toLowerCase(), account])
-  );
-
-  const teamRankings = getTeams()
-    .slice()
-    .sort((a, b) => Number(b.rating || 0) - Number(a.rating || 0))
-    .map((team, index) => ({
-      rank: index + 1,
-      name: team.name,
-      game: team.game || team.game_name || "Unknown",
-      rating: Number(team.rating || 0),
-      tier: team.rank_tier || "Bronze",
-      wins: Number(team.wins || 0),
-      losses: Number(team.losses || 0),
-      streak: 0,
-      logo_url: team.logo_url || "",
-    }));
-
-  const soloRankings = getSoloProfiles()
-    .slice()
-    .sort((a, b) => Number(b.rating || 0) - Number(a.rating || 0))
-    .map((profile, index) => ({
-      rank: index + 1,
-      name: profile.in_game_name || profile.user_name || profile.user_email,
-      rating: Number(profile.rating || 0),
-      tier: profile.rank_tier || "Bronze",
-      wins: Number(profile.stats?.wins || 0),
-      losses: Number(profile.stats?.losses || 0),
-      streak: 0,
-      avatar_url:
-        accountsByEmail[(profile.user_email || "").toLowerCase()]?.avatar_url ||
-        profile.avatar_url ||
-        "",
-    }));
+  const activeSlug = divisionSlug || divisions[0]?.slug;
+  const { data: division = fallbackDivisions[0] } = useQuery({
+    queryKey: ["division", activeSlug],
+    queryFn: () => fetchDivision(activeSlug),
+    enabled: Boolean(activeSlug),
+  });
+  const { data: leaderboard = [] } = useQuery({
+    queryKey: ["division-leaderboard", activeSlug],
+    queryFn: () => fetchDivisionLeaderboard(activeSlug),
+    enabled: Boolean(activeSlug),
+  });
+  const { data: globalElite = [] } = useQuery({
+    queryKey: ["global-elite"],
+    queryFn: fetchGlobalElite,
+  });
 
   return (
     <div className="container py-12">
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-        <h1 className="text-4xl font-display font-bold mb-2">Global Rankings</h1>
-        <p className="text-muted-foreground mb-8">Compete in team or solo rankings</p>
+      <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}>
+        <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="font-mono text-xs uppercase tracking-widest text-cyan-300">Division Rankings</p>
+            <h1 className="mt-2 text-4xl font-display font-bold">Rankings</h1>
+            <p className="mt-1 text-muted-foreground">Leaderboard positions are scoped to each permanent division.</p>
+          </div>
+          <DivisionSwitcher basePath="/rankings" activeSlug={activeSlug} className="md:max-w-xl" />
+        </div>
 
-        <Tabs defaultValue={defaultTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 bg-white/5 border border-white/10 mb-6">
-            <TabsTrigger value="team" className="font-display">Team Rankings</TabsTrigger>
-            <TabsTrigger value="solo" className="font-display">Solo Rankings</TabsTrigger>
+        <Tabs defaultValue="division">
+          <TabsList className="mb-6 grid w-full grid-cols-2 border border-white/10 bg-white/[0.04]">
+            <TabsTrigger value="division">{division.name}</TabsTrigger>
+            <TabsTrigger value="elite">Global Elite</TabsTrigger>
           </TabsList>
-
-          <TabsContent value="team">
-            <Card className="glass-card overflow-hidden border-white/10">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-white/[0.06]">
-                      {["Rank", "Team", "Game", "Rating", "Tier", "W/L"].map((h) => (
-                        <th key={h} className="px-4 py-3 text-left text-xs font-mono uppercase tracking-widest text-muted-foreground">{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {teamRankings.map((p) => (
-                      <tr
-                        key={`${p.rank}-${p.name}`}
-                        className={cn(
-                          "border-b border-white/[0.04] hover:bg-white/[0.03] transition-colors",
-                          p.rank <= 3 && "bg-primary/[0.03]"
-                        )}
-                      >
-                        <td className="px-4 py-3 font-display font-bold text-lg">#{p.rank}</td>
-                        <td className="px-4 py-3 font-semibold">
-                          <span className="inline-flex items-center gap-2">
-                            {p.logo_url ? (
-                              <img src={p.logo_url} alt={p.name} className="w-6 h-6 rounded object-cover border border-white/20" />
-                            ) : (
-                              <span className="w-6 h-6 rounded bg-white/10 inline-flex items-center justify-center text-[10px]">
-                                {(p.name || "T")[0]}
-                              </span>
-                            )}
-                            {p.name}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{p.game}</td>
-                        <td className="px-4 py-3 font-mono font-semibold">{p.rating}</td>
-                        <td className="px-4 py-3"><RankBadge tier={p.tier as any} size="sm" /></td>
-                        <td className="px-4 py-3 font-mono text-xs">
-                          <span className="text-success">{p.wins}W</span>
-                          <span className="text-muted-foreground mx-1">/</span>
-                          <span className="text-destructive">{p.losses}L</span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </Card>
+          <TabsContent value="division">
+            <LiveStandingsTable division={division} rows={leaderboard} leaderboard />
           </TabsContent>
-
-          <TabsContent value="solo">
-            <Card className="glass-card overflow-hidden border-white/10">
-              {soloRankings.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-white/[0.06]">
-                        {["Rank", "Player", "Solo Rating", "Tier", "W/L"].map((h) => (
-                          <th key={h} className="px-4 py-3 text-left text-xs font-mono uppercase tracking-widest text-muted-foreground">{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {soloRankings.map((p) => (
-                        <tr key={`${p.rank}-${p.name}`} className="border-b border-white/[0.04] hover:bg-white/[0.03] transition-colors">
-                          <td className="px-4 py-3 font-display font-bold text-lg">#{p.rank}</td>
-                          <td className="px-4 py-3 font-semibold">
-                            <span className="inline-flex items-center gap-2">
-                              {p.avatar_url ? (
-                                <img src={p.avatar_url} alt={p.name} className="w-6 h-6 rounded-full object-cover border border-white/20" />
-                              ) : (
-                                <span className="w-6 h-6 rounded-full bg-white/10 inline-flex items-center justify-center text-[10px]">
-                                  {(p.name || "U")[0]}
-                                </span>
-                              )}
-                              {p.name}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 font-mono font-semibold text-purple-400">{p.rating}</td>
-                          <td className="px-4 py-3"><RankBadge tier={p.tier as any} size="sm" /></td>
-                          <td className="px-4 py-3 font-mono text-xs">
-                            <span className="text-success">{p.wins}W</span>
-                            <span className="text-muted-foreground mx-1">/</span>
-                            <span className="text-destructive">{p.losses}L</span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div className="p-12 text-center">
-                  <p className="text-muted-foreground">No solo rankings yet.</p>
-                </div>
-              )}
-            </Card>
+          <TabsContent value="elite">
+            <div className="mb-4 flex items-center gap-2 text-sm text-amber-200">
+              <Crown size={16} />
+              Division 1 top 10
+            </div>
+            <LiveStandingsTable division={fallbackDivisions[0]} rows={globalElite} leaderboard />
           </TabsContent>
         </Tabs>
       </motion.div>

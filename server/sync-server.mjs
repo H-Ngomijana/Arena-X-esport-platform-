@@ -12,6 +12,7 @@ import {
   deleteCloudinaryAsset,
 } from "./cloudinary.js";
 import { isMailerEnabled, sendPasswordResetEmail } from "./mailer.js";
+import competitionRoutes from "./competition-routes.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -55,6 +56,7 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.options("*", cors(corsOptions));
 app.use(express.json({ limit: "25mb" }));
+app.use("/api", competitionRoutes);
 
 function resolveWritablePaths() {
   const fallbackDb = path.join(__dirname, ".runtime", "sync-state.json");
@@ -185,6 +187,7 @@ app.get("/health", (_req, res) => {
     service: "arenax-sync-server",
     at: new Date().toISOString(),
     db_file: DB_FILE,
+    database_enabled: Boolean(process.env.DATABASE_URL),
     cloudinary_enabled: cloudinaryEnabled,
     frontend_url: FRONTEND_URL || null,
   });

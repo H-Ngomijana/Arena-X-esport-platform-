@@ -1,210 +1,184 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { Link, useParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { CalendarClock, ChevronRight, Shield, Trophy } from "lucide-react";
 import { motion } from "framer-motion";
-import { Search, Users, Trophy, Calendar, ArrowRight } from "lucide-react";
-import { Link } from "react-router-dom";
-import { cn } from "@/lib/utils";
-import { getPageBackgrounds, getTournaments } from "@/lib/storage";
-import { useRealtimeRefresh } from "@/components/hooks/useRealtimeRefresh";
-
-const filters = ["All", "Registration Open", "Live", "Completed", "Coming Soon"];
-const statusMap: Record<string, string> = {
-  "Registration Open": "registration_open",
-  "Live": "in_progress",
-  "Completed": "completed",
-  "Coming Soon": "draft",
-};
+import { DivisionSwitcher } from "@/components/divisions/DivisionSwitcher";
+import { FixtureList } from "@/components/divisions/FixtureList";
+import { LiveStandingsTable } from "@/components/divisions/LiveStandingsTable";
+import { ResultSubmitModal } from "@/components/divisions/ResultSubmitModal";
+import { BracketView } from "@/components/divisions/BracketView";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  DivisionFixture,
+  fallbackDivisions,
+  fetchCurrentSeason,
+  fetchDivision,
+  fetchDivisionFixtures,
+  fetchDivisions,
+  fetchDivisionTable,
+} from "@/lib/divisions-api";
 
 const Tournaments = () => {
-  useRealtimeRefresh({
-    keys: ["tournaments", "page_backgrounds"],
-    intervalMs: 10000,
+  const { divisionSlug } = useParams();
+  const [selectedFixture, setSelectedFixture] = useState<DivisionFixture | null>(null);
+
+  const { data: divisions = fallbackDivisions } = useQuery({
+    queryKey: ["divisions"],
+    queryFn: fetchDivisions,
   });
-  const [active, setActive] = useState("All");
-  const [search, setSearch] = useState("");
-  const [hoveredBanner, setHoveredBanner] = useState<string>("");
-  const [hoveredId, setHoveredId] = useState<string>("");
-  const tournaments = getTournaments();
-  const backgrounds = getPageBackgrounds();
-  const pageBg = backgrounds.tournaments_page;
-
-  const filtered = tournaments.filter((t) => {
-    if (active !== "All" && t.status !== statusMap[active]) return false;
-    if (search && !t.name.toLowerCase().includes(search.toLowerCase())) return false;
-    return true;
+  const activeSlug = divisionSlug || divisions[0]?.slug;
+  const { data: division = fallbackDivisions[0] } = useQuery({
+    queryKey: ["division", activeSlug],
+    queryFn: () => fetchDivision(activeSlug),
+    enabled: Boolean(activeSlug),
+  });
+  const { data: season } = useQuery({
+    queryKey: ["division-season", activeSlug],
+    queryFn: () => fetchCurrentSeason(activeSlug),
+    enabled: Boolean(activeSlug),
+  });
+  const { data: table = [] } = useQuery({
+    queryKey: ["division-table", activeSlug],
+    queryFn: () => fetchDivisionTable(activeSlug),
+    enabled: Boolean(activeSlug),
+  });
+  const { data: fixtures = [] } = useQuery({
+    queryKey: ["division-fixtures", activeSlug, season?.currentRound],
+    queryFn: () => fetchDivisionFixtures(activeSlug, season?.currentRound),
+    enabled: Boolean(activeSlug),
   });
 
-  return (
-    <div className="relative min-h-screen">
-      {(hoveredBanner || pageBg) && (
-        <img
-          src={hoveredBanner || pageBg}
-          alt="Tournaments background"
-          className={cn(
-            "pointer-events-none absolute inset-0 h-full w-full object-cover transition-opacity duration-500",
-            hoveredBanner ? "opacity-65 brightness-110 saturate-125" : "opacity-35 brightness-105 saturate-110"
-          )}
-        />
-      )}
-      {hoveredBanner && (
-        <img
-          src={hoveredBanner}
-          alt="Hovered tournament spotlight"
-          className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-48 blur-[2px] brightness-125 saturate-130 transition-opacity duration-500"
-        />
-      )}
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-slate-950/80 via-slate-950/75 to-slate-950/95" />
-      <div className="container py-12 relative">
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-        <h1 className="text-4xl font-display font-bold mb-2">Tournaments</h1>
-        <p className="text-muted-foreground mb-8">Find and join competitive tournaments</p>
+  const overviewStats = useMemo(
+    () => ({
+      active: divisions.filter((item) => (item._count?.seasons || 0) > 0).length,
+      capacity: divisions.reduce((sum, item) => sum + item.maxPlayers, 0),
+    }),
+    [divisions]
+  );
 
-        <div className="flex flex-col md:flex-row gap-4 mb-8">
-          <div className="relative flex-1">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Search tournaments..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-muted border border-white/[0.08] text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-            />
+  if (!divisionSlug) {
+    return (
+      <div className="container py-12">
+        <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}>
+          <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="font-mono text-xs uppercase tracking-widest text-cyan-300">Division Pyramid</p>
+              <h1 className="mt-2 text-4xl font-display font-bold">Tournaments</h1>
+              <p className="mt-1 text-muted-foreground">Every division runs its own season, table, fixtures, and results.</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="rounded-lg border border-white/10 bg-white/[0.03] px-4 py-3">
+                <div className="font-mono text-xs text-white/45">Active</div>
+                <div className="font-display text-2xl font-bold">{overviewStats.active}</div>
+              </div>
+              <div className="rounded-lg border border-white/10 bg-white/[0.03] px-4 py-3">
+                <div className="font-mono text-xs text-white/45">Capacity</div>
+                <div className="font-display text-2xl font-bold">{overviewStats.capacity}</div>
+              </div>
+            </div>
           </div>
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {filters.map((f) => (
-              <button
-                key={f}
-                onClick={() => setActive(f)}
-                className={cn(
-                  "px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors",
-                  active === f ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground"
-                )}
+
+          <div className="grid gap-4 md:grid-cols-3">
+            {divisions.map((item) => (
+              <Link
+                key={item.id}
+                to={`/tournaments/${item.slug}`}
+                className="group rounded-lg border border-white/10 bg-[#090b12] p-5 transition-colors hover:border-cyan-300/40 hover:bg-white/[0.05]"
               >
-                {f}
-              </button>
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <Badge variant="outline" className="border-cyan-300/20 bg-cyan-300/10 text-cyan-200">
+                      Tier {item.tierLevel}
+                    </Badge>
+                    <h2 className="mt-4 font-display text-2xl font-bold">{item.name}</h2>
+                    <p className="mt-1 text-sm text-white/55">
+                      {item._count?.players || 0}/{item.maxPlayers} players
+                    </p>
+                  </div>
+                  <ChevronRight className="text-white/35 transition-transform group-hover:translate-x-1 group-hover:text-cyan-200" />
+                </div>
+                <div className="mt-5 grid grid-cols-2 gap-3 text-xs font-mono text-white/55">
+                  <span>Promote {item.promotionSlots}</span>
+                  <span>Relegate {item.relegationSlots}</span>
+                </div>
+              </Link>
             ))}
           </div>
+        </motion.div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container py-12">
+      <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}>
+        <div className="mb-6">
+          <DivisionSwitcher basePath="/tournaments" activeSlug={activeSlug} />
         </div>
 
-        <div className="space-y-4 max-w-4xl mx-auto">
-          {filtered.map((t, index) => {
-            const entryAmount = Number(t.entry_fee_amount ?? t.entry_fee ?? 0);
-            const entryCurrency = t.entry_fee_currency || "RWF";
-            const badge =
-              t.status === "in_progress"
-                ? "LIVE"
-                : t.status === "registration_open"
-                ? "REGISTRATION OPEN"
-                : t.status === "completed"
-                ? "COMPLETED"
-                : "COMING SOON";
-            return (
-              <motion.div
-                key={t.id}
-                initial={{ opacity: 0, y: 24 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.35, delay: index * 0.05 }}
-              >
-                <Link
-                  to={`/tournament?id=${t.id}`}
-                  className="block group"
-                  onMouseEnter={() => {
-                    setHoveredId(t.id);
-                    setHoveredBanner(t.banner_url || "");
-                  }}
-                  onMouseLeave={() => {
-                    setHoveredId("");
-                    setHoveredBanner("");
-                  }}
-                  onFocus={() => {
-                    setHoveredId(t.id);
-                    setHoveredBanner(t.banner_url || "");
-                  }}
-                  onBlur={() => {
-                    setHoveredId("");
-                    setHoveredBanner("");
-                  }}
-                >
-                  <motion.div
-                    whileHover={{ y: -4 }}
-                    transition={{ duration: 0.2 }}
-                    className={cn(
-                      "relative overflow-hidden rounded-2xl border border-white/10 bg-[#0a0a12]/95 backdrop-blur-sm",
-                      hoveredId === t.id && "border-cyan-300/40 shadow-[0_0_50px_rgba(34,211,238,0.18)]"
-                    )}
-                  >
-                    {t.banner_url ? (
-                      <img
-                        src={t.banner_url}
-                        alt={t.name}
-                        className={cn(
-                          "absolute inset-0 h-full w-full object-cover transition-all duration-500",
-                          hoveredId === t.id
-                            ? "opacity-60 brightness-125 saturate-130 scale-[1.03]"
-                            : "opacity-28 brightness-115 saturate-120"
-                        )}
-                      />
-                    ) : null}
-                    <div className="absolute inset-0 bg-gradient-to-r from-[#050914]/92 via-[#070d20]/74 to-[#050914]/62" />
-                    <div className="relative p-5 md:p-6 flex flex-col justify-between min-h-[190px]">
-                        <div>
-                          <div className="flex items-center gap-2 mb-2">
-                            <span className="text-[10px] uppercase tracking-widest text-cyan-300/80 font-mono">
-                              {t.game_name || "Tournament"}
-                            </span>
-                            <span className="text-white/20">|</span>
-                            <span
-                              className={cn(
-                                "px-2 py-1 rounded-full text-[10px] font-mono tracking-wider",
-                                t.status === "in_progress"
-                                  ? "bg-rose-500/20 text-rose-300"
-                                  : t.status === "registration_open"
-                                  ? "bg-emerald-500/20 text-emerald-300"
-                                  : "bg-white/10 text-white/65"
-                              )}
-                            >
-                              {badge}
-                            </span>
-                          </div>
-                          <h3 className="text-2xl font-display font-black text-white group-hover:text-cyan-300 transition-colors">
-                            {t.name}
-                          </h3>
-                          <p className="text-sm text-white/65 mt-2">
-                            {String(t.format || "").replace(/_/g, " ")} • {t.region || "Global"}
-                          </p>
-                        </div>
-                        <div className="mt-5 grid grid-cols-2 md:grid-cols-4 gap-3 text-xs font-mono text-white/70">
-                          <span className="inline-flex items-center gap-1.5">
-                            <Users size={12} />
-                            {t.registered_teams?.length || t.registered_count || 0}/{t.max_teams || 0}
-                          </span>
-                          <span className="inline-flex items-center gap-1.5">
-                            <Trophy size={12} />
-                            {t.prize_pool || "-"}
-                          </span>
-                          <span className="inline-flex items-center gap-1.5">
-                            <Calendar size={12} />
-                            {t.start_date ? new Date(t.start_date).toLocaleDateString() : "-"}
-                          </span>
-                          <span className="inline-flex items-center gap-1.5 text-amber-300">
-                            {entryAmount > 0 ? `${entryAmount.toLocaleString()} ${entryCurrency}` : "FREE"}
-                          </span>
-                        </div>
-                        <div className="mt-4 text-cyan-300 text-xs font-mono inline-flex items-center gap-1.5">
-                          View Tournament
-                          <ArrowRight size={12} className="group-hover:translate-x-1 transition-transform" />
-                        </div>
-                      </div>
-                  </motion.div>
-                </Link>
-              </motion.div>
-            );
-          })}
+        <div className="mb-8 rounded-lg border border-white/10 bg-[#090b12] p-5">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="font-mono text-xs uppercase tracking-widest text-cyan-300">{division.name}</p>
+              <h1 className="mt-1 text-4xl font-display font-bold">Season Command</h1>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Badge variant="outline" className="border-white/10 bg-white/[0.04] text-white/70">
+                  Round {season?.currentRound || 1}
+                </Badge>
+                <Badge variant="outline" className="border-emerald-300/20 bg-emerald-300/10 text-emerald-200">
+                  {season?.status || "SCHEDULED"}
+                </Badge>
+                <Badge variant="outline" className="border-amber-300/20 bg-amber-300/10 text-amber-200">
+                  {season?.daysRemaining ?? "-"} days
+                </Badge>
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <div className="rounded-lg bg-white/[0.04] px-4 py-3">
+                <Shield size={16} className="mx-auto mb-1 text-cyan-300" />
+                <div className="font-mono text-xs text-white/45">Tier</div>
+                <div className="font-display text-xl font-bold">{division.tierLevel}</div>
+              </div>
+              <div className="rounded-lg bg-white/[0.04] px-4 py-3">
+                <Trophy size={16} className="mx-auto mb-1 text-emerald-300" />
+                <div className="font-mono text-xs text-white/45">Up</div>
+                <div className="font-display text-xl font-bold">{division.promotionSlots}</div>
+              </div>
+              <div className="rounded-lg bg-white/[0.04] px-4 py-3">
+                <CalendarClock size={16} className="mx-auto mb-1 text-rose-300" />
+                <div className="font-mono text-xs text-white/45">Down</div>
+                <div className="font-display text-xl font-bold">{division.relegationSlots}</div>
+              </div>
+            </div>
+          </div>
         </div>
-        {filtered.length === 0 && (
-          <div className="text-center py-20 text-muted-foreground font-mono text-sm">No tournaments found</div>
-        )}
+
+        <Tabs defaultValue="fixtures">
+          <TabsList className="mb-6 grid w-full grid-cols-3 border border-white/10 bg-white/[0.04]">
+            <TabsTrigger value="fixtures">Fixtures</TabsTrigger>
+            <TabsTrigger value="table">Table</TabsTrigger>
+            <TabsTrigger value="history">History</TabsTrigger>
+          </TabsList>
+          <TabsContent value="fixtures">
+            <FixtureList fixtures={fixtures} onSubmitResult={setSelectedFixture} />
+          </TabsContent>
+          <TabsContent value="table">
+            {season?.competitionType === "KNOCKOUT" ? <BracketView /> : <LiveStandingsTable division={division} rows={table} />}
+          </TabsContent>
+          <TabsContent value="history">
+            <div className="rounded-lg border border-white/10 bg-white/[0.03] p-8 text-center text-sm text-white/50">
+              Archived seasons will appear after this division completes its first season.
+            </div>
+          </TabsContent>
+        </Tabs>
       </motion.div>
-      </div>
+      <ResultSubmitModal
+        fixture={selectedFixture}
+        open={Boolean(selectedFixture)}
+        onOpenChange={(open) => !open && setSelectedFixture(null)}
+      />
     </div>
   );
 };

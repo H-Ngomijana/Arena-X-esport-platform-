@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { getCurrentUser, getMyJoinRequests, getUnreadMessageNotificationCount, getUnreadNotificationCount, signOutUser } from "@/lib/storage";
 import { useRealtimeRefresh } from "@/components/hooks/useRealtimeRefresh";
 import SafeImage from "@/components/SafeImage";
+import { DivisionSwitcher } from "@/components/divisions/DivisionSwitcher";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,11 +18,8 @@ import {
 
 const navLinks = [
   { label: "Home", to: "/" },
-  { label: "Tournaments", to: "/tournaments" },
   { label: "Announcements", to: "/announcements" },
   { label: "Rankings", to: "/rankings" },
-  { label: "Games", to: "/games" },
-  { label: "Teams", to: "/teams" },
   { label: "Messages", to: "/messages" },
 ];
 
@@ -34,7 +32,6 @@ const footerColumns: Array<{
     links: [
       { label: "Tournaments", to: "/tournaments" },
       { label: "Rankings", to: "/rankings" },
-      { label: "Games", to: "/games" },
     ],
   },
   {
@@ -153,13 +150,28 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
           </Link>
 
           <nav className="hidden md:flex items-center gap-1">
-            {navLinks.map((l) => (
+            {navLinks.slice(0, 1).map((l) => (
               <Link
                 key={l.to}
                 to={l.to}
                 className={cn(
                   "px-4 py-2 text-sm font-medium rounded-lg transition-colors",
                   location.pathname === l.to
+                    ? "text-primary bg-primary/10"
+                    : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+                )}
+              >
+                {l.label}
+              </Link>
+            ))}
+            <DivisionSwitcher basePath="/tournaments" activeSlug="" mode="dropdown" />
+            {navLinks.slice(1).map((l) => (
+              <Link
+                key={l.to}
+                to={l.to}
+                className={cn(
+                  "px-4 py-2 text-sm font-medium rounded-lg transition-colors",
+                  location.pathname === l.to || (l.to !== "/" && location.pathname.startsWith(`${l.to}/`))
                     ? "text-primary bg-primary/10"
                     : "text-muted-foreground hover:text-foreground hover:bg-white/5"
                 )}
@@ -282,7 +294,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                 <span className="font-display text-lg font-bold gradient-text">ARENAX</span>
               </div>
               <nav className="flex flex-col gap-1">
-                {navLinks.map((l) => (
+                {navLinks.slice(0, 1).map((l) => (
                   <Link
                     key={l.to}
                     to={l.to}
@@ -290,6 +302,33 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                     className={cn(
                       "px-4 py-3 rounded-lg font-medium transition-colors",
                       location.pathname === l.to
+                        ? "text-primary bg-primary/10"
+                        : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+                    )}
+                  >
+                    {l.label}
+                  </Link>
+                ))}
+                <Link
+                  to="/tournaments"
+                  onClick={() => setMobileOpen(false)}
+                  className={cn(
+                    "px-4 py-3 rounded-lg font-medium transition-colors",
+                    location.pathname.startsWith("/tournaments")
+                      ? "text-primary bg-primary/10"
+                      : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+                  )}
+                >
+                  Tournaments
+                </Link>
+                {navLinks.slice(1).map((l) => (
+                  <Link
+                    key={l.to}
+                    to={l.to}
+                    onClick={() => setMobileOpen(false)}
+                    className={cn(
+                      "px-4 py-3 rounded-lg font-medium transition-colors",
+                      location.pathname === l.to || (l.to !== "/" && location.pathname.startsWith(`${l.to}/`))
                         ? "text-primary bg-primary/10"
                         : "text-muted-foreground hover:text-foreground hover:bg-white/5"
                     )}

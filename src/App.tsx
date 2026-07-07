@@ -109,6 +109,9 @@ const App = () => {
                             <Route path="/" element={<Index />} />
                             <Route path="/dashboard" element={<Dashboard />} />
                             <Route path="/tournaments" element={<Tournaments />} />
+                            <Route path="/tournaments/:divisionSlug" element={<Tournaments />} />
+                            <Route path="/tournaments/:divisionSlug/fixtures" element={<Tournaments />} />
+                            <Route path="/tournaments/:divisionSlug/table" element={<Tournaments />} />
                             <Route path="/about" element={<About />} />
                             <Route path="/tournament" element={<Tournament />} />
                             <Route path="/Tournament" element={<Tournament />} />
@@ -116,6 +119,7 @@ const App = () => {
                             <Route path="/games" element={<Games />} />
                             <Route path="/game" element={<Game />} />
                             <Route path="/rankings" element={<Rankings />} />
+                            <Route path="/rankings/:divisionSlug" element={<Rankings />} />
                             <Route path="/teams" element={<TeamsPage />} />
                             <Route path="/team" element={<Team />} />
                             <Route path="/profile" element={<UserProfile />} />

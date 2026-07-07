@@ -1,0 +1,251 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum CompetitionType {
+  LEAGUE
+  KNOCKOUT
+}
+
+enum CompetitionStatus {
+  SCHEDULED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum FixtureStatus {
+  PENDING
+  PLAYED
+  DISPUTED
+  FORFEIT
+}
+
+enum MatchSubmissionStatus {
+  PENDING_CONFIRMATION
+  CONFIRMED
+  DISPUTED
+  REJECTED
+}
+
+enum AuditAction {
+  DIVISION_CREATED
+  COMPETITION_CREATED
+  SEASON_CREATED
+  FIXTURES_GENERATED
+  RESULT_SUBMITTED
+  RESULT_CONFIRMED
+  RESULT_DISPUTED
+  RESULT_REVIEWED
+  STANDINGS_UPDATED
+  PROMOTION_APPLIED
+  RELEGATION_APPLIED
+  KNOCKOUT_ADVANCED
+}
+
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  phone         String   @unique
+  passwordHash  String
+  emailVerified Boolean  @default(false)
+  phoneVerified Boolean  @default(false)
+  username      String   @unique
+  inGameName    String?
+  inGameId      String?
+  avatarUrl     String?
+  divisionId    String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  division             Division?               @relation(fields: [divisionId], references: [id], onDelete: SetNull)
+  stats                PlayerStats?
+  homeFixtures         Fixture[]               @relation("HomePlayerFixtures")
+  awayFixtures         Fixture[]               @relation("AwayPlayerFixtures")
+  reportedSubmissions  MatchSubmission[]       @relation("ReportedSubmissions")
+  confirmedSubmissions MatchSubmission[]       @relation("ConfirmedSubmissions")
+  verifiedResults      MatchResult[]           @relation("VerifiedResults")
+  divisionHistory      PlayerDivisionHistory[]
+}
+
+model PlayerStats {
+  id                String   @id @default(uuid())
+  userId            String   @unique
+  played            Int      @default(0)
+  wins              Int      @default(0)
+  draws             Int      @default(0)
+  losses            Int      @default(0)
+  goalsFor          Int      @default(0)
+  goalsAgainst      Int      @default(0)
+  points            Int      @default(0)
+  currentStreak     Int      @default(0)
+  disciplinaryFlags Int      @default(0)
+  form              String[] @default([])
+  updatedAt         DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Division {
+  id              String   @id @default(uuid())
+  name            String
+  slug            String   @unique
+  tierLevel       Int      @unique
+  maxPlayers      Int
+  promotionSlots  Int
+  relegationSlots Int
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  players         User[]
+  seasons         Season[]
+  history         PlayerDivisionHistory[]
+  positionHistory TablePositionHistory[]
+
+  @@index([slug])
+}
+
+model Competition {
+  id          String            @id @default(uuid())
+  name        String
+  type        CompetitionType
+  entryMethod String
+  status      CompetitionStatus @default(SCHEDULED)
+  config      Json              @default("{}")
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  seasons Season[]
+}
+
+model Season {
+  id              String            @id @default(uuid())
+  divisionId      String?
+  competitionId   String?
+  competitionType CompetitionType
+  startDate       DateTime
+  endDate         DateTime?
+  status          CompetitionStatus @default(SCHEDULED)
+  config          Json              @default("{}")
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  division    Division?    @relation(fields: [divisionId], references: [id], onDelete: Cascade)
+  competition Competition? @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  fixtures    Fixture[]
+
+  @@index([divisionId, status])
+  @@index([competitionId, status])
+}
+
+model Fixture {
+  id                 String        @id @default(uuid())
+  seasonId           String
+  round              Int
+  position           Int           @default(1)
+  homeId             String?
+  awayId             String?
+  scheduledAt        DateTime?
+  status             FixtureStatus @default(PENDING)
+  winnerId           String?
+  feedsIntoFixtureId String?
+  feedsIntoSlot      String?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  season      Season            @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  home        User?             @relation("HomePlayerFixtures", fields: [homeId], references: [id], onDelete: SetNull)
+  away        User?             @relation("AwayPlayerFixtures", fields: [awayId], references: [id], onDelete: SetNull)
+  result      MatchResult?
+  submissions MatchSubmission[]
+
+  @@index([seasonId, round])
+  @@index([homeId])
+  @@index([awayId])
+}
+
+model MatchSubmission {
+  id            String                @id @default(uuid())
+  fixtureId     String
+  homeScore     Int
+  awayScore     Int
+  proofImageUrl String
+  reportedById  String
+  confirmedById String?
+  status        MatchSubmissionStatus @default(PENDING_CONFIRMATION)
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+
+  fixture     Fixture @relation(fields: [fixtureId], references: [id], onDelete: Cascade)
+  reportedBy  User    @relation("ReportedSubmissions", fields: [reportedById], references: [id], onDelete: Cascade)
+  confirmedBy User?   @relation("ConfirmedSubmissions", fields: [confirmedById], references: [id], onDelete: SetNull)
+
+  @@index([fixtureId, status])
+}
+
+model MatchResult {
+  id            String    @id @default(uuid())
+  fixtureId     String    @unique
+  homeScore     Int
+  awayScore     Int
+  proofImageUrl String
+  reportedById  String
+  verifiedById  String?
+  disputed      Boolean   @default(false)
+  lockedAt      DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  fixture    Fixture @relation(fields: [fixtureId], references: [id], onDelete: Cascade)
+  verifiedBy User?   @relation("VerifiedResults", fields: [verifiedById], references: [id], onDelete: SetNull)
+}
+
+model PlayerDivisionHistory {
+  id            String   @id @default(uuid())
+  userId        String
+  divisionId    String
+  seasonId      String?
+  movement      String
+  fromTierLevel Int?
+  toTierLevel   Int?
+  createdAt     DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  division Division @relation(fields: [divisionId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model TablePositionHistory {
+  id         String   @id @default(uuid())
+  divisionId String
+  playerId   String
+  seasonId   String?
+  round      Int
+  position   Int
+  createdAt  DateTime @default(now())
+
+  division Division @relation(fields: [divisionId], references: [id], onDelete: Cascade)
+
+  @@unique([divisionId, playerId, round])
+  @@index([divisionId, round])
+  @@index([playerId])
+}
+
+model AuditLog {
+  id         String      @id @default(uuid())
+  action     AuditAction
+  actorId    String?
+  entityId   String?
+  entityType String?
+  metadata   Json        @default("{}")
+  createdAt  DateTime    @default(now())
+
+  @@index([action, createdAt])
+  @@index([entityType, entityId])
+}
