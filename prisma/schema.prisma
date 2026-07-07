@@ -46,6 +46,16 @@ enum AuditAction {
   PROMOTION_APPLIED
   RELEGATION_APPLIED
   KNOCKOUT_ADVANCED
+  DIVISION_ACCESS_REQUESTED
+  DIVISION_ACCESS_APPROVED
+  DIVISION_ACCESS_REJECTED
+  DIVISION_TRANSFER_APPROVED
+}
+
+enum DivisionAccessStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 model User {
@@ -63,14 +73,16 @@ model User {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  division             Division?               @relation(fields: [divisionId], references: [id], onDelete: SetNull)
-  stats                PlayerStats?
-  homeFixtures         Fixture[]               @relation("HomePlayerFixtures")
-  awayFixtures         Fixture[]               @relation("AwayPlayerFixtures")
-  reportedSubmissions  MatchSubmission[]       @relation("ReportedSubmissions")
-  confirmedSubmissions MatchSubmission[]       @relation("ConfirmedSubmissions")
-  verifiedResults      MatchResult[]           @relation("VerifiedResults")
-  divisionHistory      PlayerDivisionHistory[]
+  division                       Division?               @relation(fields: [divisionId], references: [id], onDelete: SetNull)
+  stats                          PlayerStats?
+  homeFixtures                   Fixture[]               @relation("HomePlayerFixtures")
+  awayFixtures                   Fixture[]               @relation("AwayPlayerFixtures")
+  reportedSubmissions            MatchSubmission[]       @relation("ReportedSubmissions")
+  confirmedSubmissions           MatchSubmission[]       @relation("ConfirmedSubmissions")
+  verifiedResults                MatchResult[]           @relation("VerifiedResults")
+  divisionHistory                PlayerDivisionHistory[]
+  divisionAccessRequests         DivisionAccessRequest[] @relation("DivisionAccessRequester")
+  reviewedDivisionAccessRequests DivisionAccessRequest[] @relation("DivisionAccessReviewer")
 }
 
 model PlayerStats {
@@ -95,6 +107,8 @@ model Division {
   id              String   @id @default(uuid())
   name            String
   slug            String   @unique
+  bannerUrl       String?
+  theme           Json     @default("{}")
   tierLevel       Int      @unique
   maxPlayers      Int
   promotionSlots  Int
@@ -106,8 +120,33 @@ model Division {
   seasons         Season[]
   history         PlayerDivisionHistory[]
   positionHistory TablePositionHistory[]
+  accessRequests  DivisionAccessRequest[]
 
   @@index([slug])
+}
+
+model DivisionAccessRequest {
+  id                      String               @id @default(uuid())
+  userId                  String
+  divisionId              String
+  requestedTierLevel      Int?
+  currentDivisionProofUrl String
+  inGameName              String?
+  inGameId                String?
+  note                    String?
+  status                  DivisionAccessStatus @default(PENDING)
+  reviewedById            String?
+  reviewedAt              DateTime?
+  rejectionReason         String?
+  createdAt               DateTime             @default(now())
+  updatedAt               DateTime             @updatedAt
+
+  user       User     @relation("DivisionAccessRequester", fields: [userId], references: [id], onDelete: Cascade)
+  division   Division @relation(fields: [divisionId], references: [id], onDelete: Cascade)
+  reviewedBy User?    @relation("DivisionAccessReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([divisionId, status])
+  @@index([userId, status])
 }
 
 model Competition {

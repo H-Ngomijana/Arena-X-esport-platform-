@@ -14,7 +14,10 @@ CREATE TYPE "FixtureStatus" AS ENUM ('PENDING', 'PLAYED', 'DISPUTED', 'FORFEIT')
 CREATE TYPE "MatchSubmissionStatus" AS ENUM ('PENDING_CONFIRMATION', 'CONFIRMED', 'DISPUTED', 'REJECTED');
 
 -- CreateEnum
-CREATE TYPE "AuditAction" AS ENUM ('DIVISION_CREATED', 'COMPETITION_CREATED', 'SEASON_CREATED', 'FIXTURES_GENERATED', 'RESULT_SUBMITTED', 'RESULT_CONFIRMED', 'RESULT_DISPUTED', 'RESULT_REVIEWED', 'STANDINGS_UPDATED', 'PROMOTION_APPLIED', 'RELEGATION_APPLIED', 'KNOCKOUT_ADVANCED');
+CREATE TYPE "AuditAction" AS ENUM ('DIVISION_CREATED', 'COMPETITION_CREATED', 'SEASON_CREATED', 'FIXTURES_GENERATED', 'RESULT_SUBMITTED', 'RESULT_CONFIRMED', 'RESULT_DISPUTED', 'RESULT_REVIEWED', 'STANDINGS_UPDATED', 'PROMOTION_APPLIED', 'RELEGATION_APPLIED', 'KNOCKOUT_ADVANCED', 'DIVISION_ACCESS_REQUESTED', 'DIVISION_ACCESS_APPROVED', 'DIVISION_ACCESS_REJECTED', 'DIVISION_TRANSFER_APPROVED');
+
+-- CreateEnum
+CREATE TYPE "DivisionAccessStatus" AS ENUM ('PENDING', 'APPROVED', 'REJECTED');
 
 -- CreateTable
 CREATE TABLE "User" (
@@ -59,6 +62,8 @@ CREATE TABLE "Division" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "slug" TEXT NOT NULL,
+    "bannerUrl" TEXT,
+    "theme" JSONB NOT NULL DEFAULT '{}',
     "tierLevel" INTEGER NOT NULL,
     "maxPlayers" INTEGER NOT NULL,
     "promotionSlots" INTEGER NOT NULL,
@@ -67,6 +72,26 @@ CREATE TABLE "Division" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "Division_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "DivisionAccessRequest" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "divisionId" TEXT NOT NULL,
+    "requestedTierLevel" INTEGER,
+    "currentDivisionProofUrl" TEXT NOT NULL,
+    "inGameName" TEXT,
+    "inGameId" TEXT,
+    "note" TEXT,
+    "status" "DivisionAccessStatus" NOT NULL DEFAULT 'PENDING',
+    "reviewedById" TEXT,
+    "reviewedAt" TIMESTAMP(3),
+    "rejectionReason" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "DivisionAccessRequest_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -213,6 +238,12 @@ CREATE UNIQUE INDEX "Division_tierLevel_key" ON "Division"("tierLevel");
 CREATE INDEX "Division_slug_idx" ON "Division"("slug");
 
 -- CreateIndex
+CREATE INDEX "DivisionAccessRequest_divisionId_status_idx" ON "DivisionAccessRequest"("divisionId", "status");
+
+-- CreateIndex
+CREATE INDEX "DivisionAccessRequest_userId_status_idx" ON "DivisionAccessRequest"("userId", "status");
+
+-- CreateIndex
 CREATE INDEX "Season_divisionId_status_idx" ON "Season"("divisionId", "status");
 
 -- CreateIndex
@@ -256,6 +287,15 @@ ALTER TABLE "User" ADD CONSTRAINT "User_divisionId_fkey" FOREIGN KEY ("divisionI
 
 -- AddForeignKey
 ALTER TABLE "PlayerStats" ADD CONSTRAINT "PlayerStats_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "DivisionAccessRequest" ADD CONSTRAINT "DivisionAccessRequest_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "DivisionAccessRequest" ADD CONSTRAINT "DivisionAccessRequest_divisionId_fkey" FOREIGN KEY ("divisionId") REFERENCES "Division"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "DivisionAccessRequest" ADD CONSTRAINT "DivisionAccessRequest_reviewedById_fkey" FOREIGN KEY ("reviewedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Season" ADD CONSTRAINT "Season_divisionId_fkey" FOREIGN KEY ("divisionId") REFERENCES "Division"("id") ON DELETE CASCADE ON UPDATE CASCADE;

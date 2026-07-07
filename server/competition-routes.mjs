@@ -211,6 +211,8 @@ router.post("/admin/divisions", async (req, res) => {
     data: {
       name: String(name),
       slug: String(slug || slugifyDivision(name, normalizedTier)),
+      bannerUrl: req.body?.bannerUrl || null,
+      theme: req.body?.theme && typeof req.body.theme === "object" ? req.body.theme : {},
       tierLevel: normalizedTier,
       maxPlayers: toInt(maxPlayers, 20),
       promotionSlots: toInt(promotionSlots, 2),
@@ -346,6 +348,124 @@ router.get("/divisions/:slug/history", async (req, res) => {
     },
   });
   return res.json({ division, seasons });
+});
+
+router.post("/divisions/:slug/access-requests", async (req, res) => {
+  const division = await findDivisionByRef(req.params.slug);
+  if (!division) return res.status(404).json({ error: "division_not_found" });
+
+  const { userId, currentDivisionProofUrl, inGameName, inGameId, note, requestedTierLevel } = req.body || {};
+  if (!userId || !currentDivisionProofUrl) {
+    return res.status(400).json({ error: "user_and_division_proof_required" });
+  }
+
+  const request = await prisma.divisionAccessRequest.create({
+    data: {
+      userId: String(userId),
+      divisionId: division.id,
+      requestedTierLevel: requestedTierLevel ? toInt(requestedTierLevel, division.tierLevel) : division.tierLevel,
+      currentDivisionProofUrl: String(currentDivisionProofUrl),
+      inGameName: inGameName ? String(inGameName) : null,
+      inGameId: inGameId ? String(inGameId) : null,
+      note: note ? String(note) : null,
+    },
+  });
+
+  await audit("DIVISION_ACCESS_REQUESTED", {
+    actorId: userId,
+    entityId: request.id,
+    entityType: "DivisionAccessRequest",
+    divisionId: division.id,
+  });
+  return res.status(201).json({ request });
+});
+
+router.get("/admin/division-access-requests", async (req, res) => {
+  const status = String(req.query?.status || "PENDING").toUpperCase();
+  const where = status === "ALL" ? {} : { status };
+  const requests = await prisma.divisionAccessRequest.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+    include: {
+      user: true,
+      division: true,
+      reviewedBy: true,
+    },
+  });
+  return res.json({ requests });
+});
+
+router.post("/admin/division-access-requests/:id/approve", async (req, res) => {
+  const { reviewedById } = req.body || {};
+  const request = await prisma.divisionAccessRequest.findUnique({
+    where: { id: req.params.id },
+    include: { division: true, user: true },
+  });
+  if (!request) return res.status(404).json({ error: "request_not_found" });
+
+  const previousDivision = request.user.divisionId
+    ? await prisma.division.findUnique({ where: { id: request.user.divisionId } })
+    : null;
+
+  const updated = await prisma.$transaction(async (tx) => {
+    await tx.user.update({
+      where: { id: request.userId },
+      data: {
+        divisionId: request.divisionId,
+        inGameName: request.inGameName || undefined,
+        inGameId: request.inGameId || undefined,
+      },
+    });
+    await tx.playerDivisionHistory.create({
+      data: {
+        userId: request.userId,
+        divisionId: request.divisionId,
+        movement: previousDivision ? "ADMIN_TRANSFER_APPROVED" : "ADMIN_JOIN_APPROVED",
+        fromTierLevel: previousDivision?.tierLevel || null,
+        toTierLevel: request.division.tierLevel,
+      },
+    });
+    return tx.divisionAccessRequest.update({
+      where: { id: request.id },
+      data: {
+        status: "APPROVED",
+        reviewedById: reviewedById || null,
+        reviewedAt: new Date(),
+      },
+      include: { user: true, division: true },
+    });
+  });
+
+  await audit(previousDivision ? "DIVISION_TRANSFER_APPROVED" : "DIVISION_ACCESS_APPROVED", {
+    actorId: reviewedById,
+    entityId: request.id,
+    entityType: "DivisionAccessRequest",
+    userId: request.userId,
+    divisionId: request.divisionId,
+  });
+  return res.json({ request: updated });
+});
+
+router.post("/admin/division-access-requests/:id/reject", async (req, res) => {
+  const { reviewedById, rejectionReason } = req.body || {};
+  const request = await prisma.divisionAccessRequest.update({
+    where: { id: req.params.id },
+    data: {
+      status: "REJECTED",
+      reviewedById: reviewedById || null,
+      reviewedAt: new Date(),
+      rejectionReason: rejectionReason ? String(rejectionReason) : "Rejected by admin",
+    },
+    include: { user: true, division: true },
+  });
+  await audit("DIVISION_ACCESS_REJECTED", {
+    actorId: reviewedById,
+    entityId: request.id,
+    entityType: "DivisionAccessRequest",
+    userId: request.userId,
+    divisionId: request.divisionId,
+  });
+  return res.json({ request });
 });
 
 router.get("/rankings/global-elite", async (_req, res) => {

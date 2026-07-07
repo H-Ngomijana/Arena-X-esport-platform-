@@ -1,9 +1,15 @@
-import { apiGet } from "@/lib/api";
+import { apiGet, apiPost } from "@/lib/api";
 
 export interface DivisionSummary {
   id: string;
   name: string;
   slug: string;
+  bannerUrl?: string | null;
+  theme?: {
+    primary?: string;
+    accent?: string;
+    background?: string;
+  };
   tierLevel: number;
   maxPlayers: number;
   promotionSlots: number;
@@ -65,9 +71,39 @@ export interface CurrentSeasonSummary {
 }
 
 export const fallbackDivisions: DivisionSummary[] = [
-  { id: "division-1", name: "Division 1", slug: "division-1", tierLevel: 1, maxPlayers: 20, promotionSlots: 0, relegationSlots: 3 },
-  { id: "division-2", name: "Division 2", slug: "division-2", tierLevel: 2, maxPlayers: 20, promotionSlots: 3, relegationSlots: 3 },
-  { id: "division-3", name: "Division 3", slug: "division-3", tierLevel: 3, maxPlayers: 20, promotionSlots: 3, relegationSlots: 3 },
+  {
+    id: "division-1",
+    name: "Division 1",
+    slug: "division-1",
+    bannerUrl: "/placeholder.svg",
+    theme: { primary: "#22d3ee", accent: "#a78bfa" },
+    tierLevel: 1,
+    maxPlayers: 20,
+    promotionSlots: 0,
+    relegationSlots: 3,
+  },
+  {
+    id: "division-2",
+    name: "Division 2",
+    slug: "division-2",
+    bannerUrl: "/placeholder.svg",
+    theme: { primary: "#34d399", accent: "#22d3ee" },
+    tierLevel: 2,
+    maxPlayers: 20,
+    promotionSlots: 3,
+    relegationSlots: 3,
+  },
+  {
+    id: "division-3",
+    name: "Division 3",
+    slug: "division-3",
+    bannerUrl: "/placeholder.svg",
+    theme: { primary: "#f59e0b", accent: "#fb7185" },
+    tierLevel: 3,
+    maxPlayers: 20,
+    promotionSlots: 3,
+    relegationSlots: 3,
+  },
 ];
 
 function withFallbackSlug(slug?: string) {
@@ -141,4 +177,16 @@ export async function fetchGlobalElite(): Promise<StandingRow[]> {
   } catch {
     return [];
   }
+}
+
+export async function createDivisionAccessRequest(payload: {
+  divisionSlug: string;
+  userId: string;
+  currentDivisionProofUrl: string;
+  inGameName?: string;
+  inGameId?: string;
+  note?: string;
+}) {
+  const { divisionSlug, ...body } = payload;
+  return apiPost(`/api/divisions/${divisionSlug}/access-requests`, body);
 }
